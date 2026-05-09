@@ -22,7 +22,7 @@ class Settings(BaseSettings):
     LLM_MODEL: str = "deepseek/deepseek-r1-0528"
 
     XML_LABEL_MAX_RETRIES: int = 3
-    REPORT_POLL_TIMEOUT_SECONDS: int = 120
+    REPORT_POLL_TIMEOUT_SECONDS: int = 300
 
     class Config:
         env_file = ".env"

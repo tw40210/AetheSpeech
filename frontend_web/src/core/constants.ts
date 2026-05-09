@@ -8,8 +8,8 @@ export const AppConstants = {
   questionsPerSession: 3,
 
   // Report polling
-  pollIntervalMs: 2000,
-  pollTimeoutMs: 120000,
+  pollIntervalMs: 5000,
+  pollTimeoutMs: 300000,
 
   // LocalStorage keys
   tokenKey: 'auth_token',

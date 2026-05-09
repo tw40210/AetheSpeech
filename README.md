@@ -59,6 +59,8 @@ python init_db.py
 Start the FastAPI server:
 
 ```bash
+cd backend
+source .venv/bin/activate
 uvicorn main:app --reload --host 0.0.0.0 --port 8000
 ```
 
@@ -84,7 +86,7 @@ pytest -v
 
 ```bash
 cd frontend_web
-npm install
+
 npm run dev
 ```
 

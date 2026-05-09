@@ -1,7 +1,7 @@
 import 'dart:async';
 import 'package:flutter/foundation.dart';
 import '../core/constants.dart';
-import '../models/report.dart';
+import '../models/report.dart'; // Report, AnswerAssessment, ReportSummary
 import '../services/api_client.dart';
 
 enum ReportFetchState { idle, submitting, polling, done, error }
@@ -11,12 +11,14 @@ class ReportStateProvider extends ChangeNotifier {
 
   ReportFetchState _fetchState = ReportFetchState.idle;
   Report? _report;
+  List<AnswerAssessment> _liveAssessments = [];
   List<ReportSummary> _history = [];
   String? _error;
   Timer? _pollTimer;
 
   ReportFetchState get fetchState => _fetchState;
   Report? get report => _report;
+  List<AnswerAssessment> get liveAssessments => List.unmodifiable(_liveAssessments);
   List<ReportSummary> get history => List.unmodifiable(_history);
   String? get error => _error;
 
@@ -25,6 +27,7 @@ class ReportStateProvider extends ChangeNotifier {
   Future<String?> submitBatch(List<String> answerIds) async {
     _fetchState = ReportFetchState.submitting;
     _report = null;
+    _liveAssessments = [];
     _error = null;
     notifyListeners();
 
@@ -61,14 +64,15 @@ class ReportStateProvider extends ChangeNotifier {
       try {
         final data = await _api.get('/reports/$reportId');
         final r = Report.fromJson(data as Map<String, dynamic>);
+        _liveAssessments = r.assessments;
         if (r.isDone || r.isFailed) {
           t.cancel();
           _report = r;
           _fetchState = r.isDone ? ReportFetchState.done : ReportFetchState.error;
           if (r.isFailed) _error = 'Report generation failed';
-          notifyListeners();
-          onDone?.call();
         }
+        notifyListeners();
+        if (r.isDone || r.isFailed) onDone?.call();
       } catch (e) {
         // Ignore transient errors during polling
       }
@@ -105,6 +109,7 @@ class ReportStateProvider extends ChangeNotifier {
     _pollTimer?.cancel();
     _fetchState = ReportFetchState.idle;
     _report = null;
+    _liveAssessments = [];
     _error = null;
     notifyListeners();
   }

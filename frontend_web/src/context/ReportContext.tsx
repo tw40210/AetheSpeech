@@ -8,7 +8,7 @@ import {
   type ReactNode,
 } from 'react';
 import { AppConstants } from '../core/constants';
-import type { Report, ReportSummary } from '../core/types';
+import type { AnswerAssessment, Report, ReportSummary } from '../core/types';
 import { apiClient } from '../services/apiClient';
 
 export enum ReportFetchState {
@@ -26,6 +26,7 @@ interface StartPollingOptions {
 interface ReportContextValue {
   fetchState: ReportFetchState;
   report: Report | null;
+  liveAssessments: AnswerAssessment[];
   history: ReportSummary[];
   error: string | null;
   submitBatch: (answerIds: string[]) => Promise<string | null>;
@@ -40,6 +41,7 @@ const ReportContext = createContext<ReportContextValue | null>(null);
 export function ReportProvider({ children }: { children: ReactNode }) {
   const [fetchState, setFetchState] = useState<ReportFetchState>(ReportFetchState.IDLE);
   const [report, setReport] = useState<Report | null>(null);
+  const [liveAssessments, setLiveAssessments] = useState<AnswerAssessment[]>([]);
   const [history, setHistory] = useState<ReportSummary[]>([]);
   const [error, setError] = useState<string | null>(null);
 
@@ -60,6 +62,7 @@ export function ReportProvider({ children }: { children: ReactNode }) {
       clearPoll();
       setFetchState(ReportFetchState.SUBMITTING);
       setReport(null);
+      setLiveAssessments([]);
       setError(null);
 
       try {
@@ -92,6 +95,8 @@ export function ReportProvider({ children }: { children: ReactNode }) {
 
         try {
           const data = await apiClient.get<Report>(`/reports/${reportId}`);
+          setLiveAssessments(data.assessments);
+
           const isDone = data.status === 'done';
           const isFailed = data.status === 'failed';
 
@@ -140,6 +145,7 @@ export function ReportProvider({ children }: { children: ReactNode }) {
     clearPoll();
     setFetchState(ReportFetchState.IDLE);
     setReport(null);
+    setLiveAssessments([]);
     setError(null);
   }, [clearPoll]);
 
@@ -148,6 +154,7 @@ export function ReportProvider({ children }: { children: ReactNode }) {
       value={{
         fetchState,
         report,
+        liveAssessments,
         history,
         error,
         submitBatch,

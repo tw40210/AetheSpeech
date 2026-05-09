@@ -1,18 +1,29 @@
+import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import ErrorOutlineIcon from '@mui/icons-material/ErrorOutline';
+import HighlightOffIcon from '@mui/icons-material/HighlightOff';
 import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
+import Card from '@mui/material/Card';
 import Typography from '@mui/material/Typography';
 import { keyframes } from '@mui/system';
 import { useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useInterview } from '../context/InterviewContext';
 import { ReportFetchState, useReport } from '../context/ReportContext';
+import type { AnswerAssessment } from '../core/types';
 
-// Fading-circle spinner animation (mirrors Flutter's SpinKitFadingCircle)
+// ── Animations ───────────────────────────────────────────────────────────────
+
 const fadeRotate = keyframes`
   0%   { transform: rotate(0deg);   opacity: 1;   }
   100% { transform: rotate(360deg); opacity: 0.2; }
 `;
+
+const ping = keyframes`
+  75%, 100% { transform: scale(2.4); opacity: 0; }
+`;
+
+// ── Sub-components ────────────────────────────────────────────────────────────
 
 interface FadingSpinnerProps {
   size?: number;
@@ -45,12 +56,49 @@ function FadingSpinner({ size = 80, color = '#5C6BC0' }: FadingSpinnerProps) {
   );
 }
 
+function PulsingDot() {
+  return (
+    <Box sx={{ position: 'relative', width: 12, height: 12, flexShrink: 0 }}>
+      <Box
+        sx={{
+          position: 'absolute',
+          inset: 0,
+          borderRadius: '50%',
+          bgcolor: 'warning.main',
+          animation: `${ping} 1.4s cubic-bezier(0, 0, 0.2, 1) infinite`,
+        }}
+      />
+      <Box
+        sx={{
+          position: 'absolute',
+          inset: 0,
+          borderRadius: '50%',
+          bgcolor: 'warning.main',
+        }}
+      />
+    </Box>
+  );
+}
+
+// ── Helpers ───────────────────────────────────────────────────────────────────
+
+function formatDuration(ms: number): string {
+  const secs = Math.max(0, Math.round(ms / 1000));
+  if (secs < 60) return `${secs}s`;
+  return `${Math.floor(secs / 60)}m ${secs % 60}s`;
+}
+
+// ── Page ──────────────────────────────────────────────────────────────────────
+
 export default function WaitingPage() {
   const navigate = useNavigate();
-  const { answerIds } = useInterview();
-  const { fetchState, error, submitBatch, startPolling } = useReport();
+  const { answerIds, questions } = useInterview();
+  const { fetchState, error, submitBatch, startPolling, liveAssessments } = useReport();
 
   const submittedRef = useRef(false);
+
+  // Track when each assessment first becomes done/failed: assessmentId → epoch ms
+  const doneAtRef = useRef<Record<string, number>>({});
 
   useEffect(() => {
     if (submittedRef.current) return;
@@ -71,6 +119,19 @@ export default function WaitingPage() {
     })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // Stamp done-at timestamps as soon as we see a completed assessment
+  liveAssessments.forEach((a) => {
+    if ((a.status === 'done' || a.status === 'failed') && !doneAtRef.current[a.id]) {
+      doneAtRef.current[a.id] = Date.now();
+    }
+  });
+
+  // Build quick-lookup map: questionId → assessment
+  const byQuestionId: Record<string, AnswerAssessment> = {};
+  liveAssessments.forEach((a) => {
+    if (a.question_id) byQuestionId[a.question_id] = a;
+  });
 
   /* ── Error state ── */
   if (fetchState === ReportFetchState.ERROR) {
@@ -128,18 +189,108 @@ export default function WaitingPage() {
           flexDirection: 'column',
           alignItems: 'center',
           gap: 4,
-          maxWidth: 400,
-          textAlign: 'center',
+          width: '100%',
+          maxWidth: 500,
         }}
       >
         <FadingSpinner size={80} color="#5C6BC0" />
-        <Typography variant="h5" fontWeight="bold">
-          Analysing your answers…
-        </Typography>
-        <Typography color="text.secondary">
-          AI is transcribing your speech, labeling key points, and preparing personalised
-          feedback.
-        </Typography>
+
+        <Box sx={{ textAlign: 'center' }}>
+          <Typography variant="h5" fontWeight="bold">
+            Analysing your answers…
+          </Typography>
+          <Typography color="text.secondary" sx={{ mt: 1 }}>
+            AI is transcribing your speech, labeling key points, and preparing personalised
+            feedback.
+          </Typography>
+        </Box>
+
+        {/* Per-question progress list */}
+        {questions.length > 0 && (
+          <Card
+            variant="outlined"
+            sx={{ width: '100%', p: 2.5, borderRadius: 2 }}
+          >
+            <Typography
+              variant="overline"
+              color="text.secondary"
+              sx={{ display: 'block', mb: 1.5, letterSpacing: 1 }}
+            >
+              Assessment progress
+            </Typography>
+
+            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}>
+              {questions.map((q, i) => {
+                const assessment = byQuestionId[q.id];
+                const isDone = assessment?.status === 'done';
+                const isFailed = assessment?.status === 'failed';
+                const isCompleted = isDone || isFailed;
+
+                let timeLabel = '';
+                if (isCompleted && assessment) {
+                  const doneAt = doneAtRef.current[assessment.id];
+                  if (doneAt) {
+                    timeLabel = formatDuration(
+                      doneAt - new Date(assessment.created_at).getTime(),
+                    );
+                  }
+                }
+
+                return (
+                  <Box
+                    key={q.id}
+                    sx={{ display: 'flex', alignItems: 'flex-start', gap: 1.5 }}
+                  >
+                    {/* Status indicator */}
+                    <Box sx={{ mt: '3px', flexShrink: 0 }}>
+                      {isCompleted ? (
+                        isDone ? (
+                          <CheckCircleIcon sx={{ fontSize: 18, color: 'success.main' }} />
+                        ) : (
+                          <HighlightOffIcon sx={{ fontSize: 18, color: 'error.main' }} />
+                        )
+                      ) : (
+                        <PulsingDot />
+                      )}
+                    </Box>
+
+                    {/* Question text + timing */}
+                    <Box sx={{ flex: 1, minWidth: 0 }}>
+                      <Typography
+                        variant="body2"
+                        sx={{
+                          color: isCompleted ? 'text.primary' : 'text.secondary',
+                          overflow: 'hidden',
+                          textOverflow: 'ellipsis',
+                          display: '-webkit-box',
+                          WebkitLineClamp: 2,
+                          WebkitBoxOrient: 'vertical',
+                        }}
+                      >
+                        <Box
+                          component="span"
+                          sx={{ fontWeight: 700, mr: 0.75, color: 'text.primary' }}
+                        >
+                          Q{i + 1}.
+                        </Box>
+                        {q.text}
+                      </Typography>
+
+                      {isCompleted && timeLabel && (
+                        <Typography
+                          variant="caption"
+                          sx={{ color: isDone ? 'success.main' : 'error.main' }}
+                        >
+                          Processed in {timeLabel}
+                        </Typography>
+                      )}
+                    </Box>
+                  </Box>
+                );
+              })}
+            </Box>
+          </Card>
+        )}
       </Box>
     </Box>
   );
