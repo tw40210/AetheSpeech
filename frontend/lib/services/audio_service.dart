@@ -24,6 +24,11 @@ class AudioService {
         sampleRate: 16000,
         bitRate: 64000,
         numChannels: 1,
+        androidConfig: AndroidRecordConfig(
+          useLegacy: true,
+          manageBluetooth: false,
+          audioSource: AndroidAudioSource.mic,
+        ),
       ),
       path: _currentPath!,
     );

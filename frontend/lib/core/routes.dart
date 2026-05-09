@@ -2,6 +2,7 @@ import 'package:go_router/go_router.dart';
 
 import '../ui/auth/auth_screen.dart';
 import '../ui/home/dashboard_screen.dart';
+import '../ui/home/device_test_screen.dart';
 import '../ui/home/history_screen.dart';
 import '../ui/interview/preparation_screen.dart';
 import '../ui/interview/recording_screen.dart';
@@ -12,6 +13,7 @@ import '../models/question.dart';
 class AppRoutes {
   static const auth = '/';
   static const dashboard = '/dashboard';
+  static const deviceTest = '/device-test';
   static const history = '/history';
   static const preparation = '/interview/prepare';
   static const recording = '/interview/record';
@@ -28,6 +30,10 @@ class AppRoutes {
       GoRoute(
         path: dashboard,
         builder: (_, __) => const DashboardScreen(),
+      ),
+      GoRoute(
+        path: deviceTest,
+        builder: (_, __) => const DeviceTestScreen(),
       ),
       GoRoute(
         path: history,

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
+import '../../core/constants.dart';
 import '../../core/routes.dart';
 import '../../models/topic.dart';
 import '../../services/api_client.dart';
@@ -49,7 +50,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
     if (_selected == null) return;
     final interview = context.read<InterviewState>();
     interview.setTopic(_selected!);
-    await interview.loadQuestions(_selected!.id, 10);
+    await interview.loadQuestions(
+      _selected!.id,
+      AppConstants.questionsPerSession,
+    );
 
     if (!mounted) return;
     if (interview.questions.isEmpty) {
@@ -78,6 +82,11 @@ class _DashboardScreenState extends State<DashboardScreen> {
       appBar: AppBar(
         title: const Text('AetheSpeech'),
         actions: [
+          IconButton(
+            icon: const Icon(Icons.mic_external_on_rounded),
+            onPressed: () => context.push(AppRoutes.deviceTest),
+            tooltip: 'Test Device',
+          ),
           IconButton(
             icon: const Icon(Icons.history),
             onPressed: () => context.push(AppRoutes.history),
@@ -123,7 +132,16 @@ class _DashboardScreenState extends State<DashboardScreen> {
                             .bodyMedium
                             ?.copyWith(color: cs.outline),
                       ),
-                      const SizedBox(height: 24),
+                      const SizedBox(height: 16),
+                      OutlinedButton.icon(
+                        onPressed: () => context.push(AppRoutes.deviceTest),
+                        icon: const Icon(Icons.mic_external_on_rounded),
+                        label: const Text('Test your microphone'),
+                        style: OutlinedButton.styleFrom(
+                          minimumSize: const Size.fromHeight(44),
+                        ),
+                      ),
+                      const SizedBox(height: 16),
                       Expanded(
                         child: ListView.separated(
                           itemCount: _topics!.length,

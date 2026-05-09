@@ -1,4 +1,4 @@
-# Python
+# ── Python (backend) ─────────────────────────────────────────
 __pycache__/
 *.py[cod]
 *.pyo
@@ -16,21 +16,25 @@ build/
 htmlcov/
 .coverage
 
-# Environment
+# ── Environment variables ────────────────────────────────────
 .env
 .env.*
 !.env.example
 
-# Audio temp files
+# ── Audio temp files ─────────────────────────────────────────
 /tmp/aethespeech_audio/
 *.wav
 *.mp3
 *.m4a
 *.aac
-*.ogg
-*.webm
 
-# Flutter
+# ── React / Node (frontend_web) ──────────────────────────────
+frontend_web/node_modules/
+frontend_web/dist/
+frontend_web/.vite/
+frontend_web/*.local
+
+# ── Flutter (frontend) ───────────────────────────────────────
 frontend/.dart_tool/
 frontend/.flutter-plugins
 frontend/.flutter-plugins-dependencies
@@ -38,7 +42,7 @@ frontend/.packages
 frontend/build/
 frontend/.pub-cache/
 frontend/.pub/
-frontend/pubspec.lock
+# pubspec.lock is intentionally tracked for reproducible builds
 frontend/android/.gradle/
 frontend/android/local.properties
 frontend/android/key.properties
@@ -46,12 +50,13 @@ frontend/ios/Pods/
 frontend/ios/.symlinks/
 frontend/.idea/
 
-# Docker volumes
+# ── Docker volumes ───────────────────────────────────────────
 postgres_data/
 
-# IDE
+# ── IDE / OS ─────────────────────────────────────────────────
 .idea/
 .vscode/
 *.swp
 *.swo
 .DS_Store
+Thumbs.db

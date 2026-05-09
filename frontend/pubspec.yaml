@@ -26,6 +26,8 @@ dependencies:
   uuid: ^4.4.2
   # Temp directory for audio files
   path_provider: ^2.1.4
+  # Audio playback
+  just_audio: ^0.9.42
 
 dev_dependencies:
   flutter_test:

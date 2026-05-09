@@ -9,6 +9,7 @@ A mobile application that helps users practice structured oral presentations. Us
 | Layer | Technology |
 |-------|-----------|
 | Mobile frontend | Flutter (Material 3) |
+| Web frontend | React 18 + MUI v5 |
 | HTTP API | Python FastAPI |
 | Background workers | Celery + Redis |
 | Database | PostgreSQL 16 |
@@ -79,7 +80,19 @@ source .venv/bin/activate
 pytest -v
 ```
 
-### 4. Set up and run Flutter frontend
+### 4. Set up and run Web frontend (React + MUI)
+
+```bash
+cd frontend_web
+npm install
+npm run dev
+```
+
+The web app runs at **http://localhost:3000**.
+
+Update `src/core/constants.js` → `baseUrl` if the backend runs on a different host or port.
+
+### 5. Set up and run Flutter frontend
 
 ```bash
 cd frontend
@@ -90,7 +103,7 @@ flutter run
 
 Update `lib/core/constants.dart` with your machine's IP if running on a physical device.
 
-### 5. Run Flutter tests
+### 6. Run Flutter tests
 
 ```bash
 cd frontend
