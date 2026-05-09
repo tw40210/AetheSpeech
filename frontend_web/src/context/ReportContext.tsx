@@ -23,10 +23,13 @@ interface StartPollingOptions {
   onDone?: () => void;
 }
 
+export type LiveReportStatus = 'pending' | 'processing' | 'done' | 'failed';
+
 interface ReportContextValue {
   fetchState: ReportFetchState;
   report: Report | null;
   liveAssessments: AnswerAssessment[];
+  liveReportStatus: LiveReportStatus | null;
   history: ReportSummary[];
   error: string | null;
   submitBatch: (answerIds: string[]) => Promise<string | null>;
@@ -42,6 +45,7 @@ export function ReportProvider({ children }: { children: ReactNode }) {
   const [fetchState, setFetchState] = useState<ReportFetchState>(ReportFetchState.IDLE);
   const [report, setReport] = useState<Report | null>(null);
   const [liveAssessments, setLiveAssessments] = useState<AnswerAssessment[]>([]);
+  const [liveReportStatus, setLiveReportStatus] = useState<LiveReportStatus | null>(null);
   const [history, setHistory] = useState<ReportSummary[]>([]);
   const [error, setError] = useState<string | null>(null);
 
@@ -63,6 +67,7 @@ export function ReportProvider({ children }: { children: ReactNode }) {
       setFetchState(ReportFetchState.SUBMITTING);
       setReport(null);
       setLiveAssessments([]);
+      setLiveReportStatus('pending');
       setError(null);
 
       try {
@@ -96,6 +101,7 @@ export function ReportProvider({ children }: { children: ReactNode }) {
         try {
           const data = await apiClient.get<Report>(`/reports/${reportId}`);
           setLiveAssessments(data.assessments);
+          setLiveReportStatus(data.status as LiveReportStatus);
 
           const isDone = data.status === 'done';
           const isFailed = data.status === 'failed';
@@ -146,6 +152,7 @@ export function ReportProvider({ children }: { children: ReactNode }) {
     setFetchState(ReportFetchState.IDLE);
     setReport(null);
     setLiveAssessments([]);
+    setLiveReportStatus(null);
     setError(null);
   }, [clearPoll]);
 
@@ -155,6 +162,7 @@ export function ReportProvider({ children }: { children: ReactNode }) {
         fetchState,
         report,
         liveAssessments,
+        liveReportStatus,
         history,
         error,
         submitBatch,

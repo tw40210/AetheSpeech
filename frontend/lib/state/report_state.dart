@@ -12,6 +12,7 @@ class ReportStateProvider extends ChangeNotifier {
   ReportFetchState _fetchState = ReportFetchState.idle;
   Report? _report;
   List<AnswerAssessment> _liveAssessments = [];
+  String? _liveReportStatus;
   List<ReportSummary> _history = [];
   String? _error;
   Timer? _pollTimer;
@@ -19,6 +20,10 @@ class ReportStateProvider extends ChangeNotifier {
   ReportFetchState get fetchState => _fetchState;
   Report? get report => _report;
   List<AnswerAssessment> get liveAssessments => List.unmodifiable(_liveAssessments);
+
+  /// Current backend report status: 'pending' | 'processing' | 'done' | 'failed'.
+  /// Updated on every poll tick; null before submission.
+  String? get liveReportStatus => _liveReportStatus;
   List<ReportSummary> get history => List.unmodifiable(_history);
   String? get error => _error;
 
@@ -28,6 +33,7 @@ class ReportStateProvider extends ChangeNotifier {
     _fetchState = ReportFetchState.submitting;
     _report = null;
     _liveAssessments = [];
+    _liveReportStatus = 'pending';
     _error = null;
     notifyListeners();
 
@@ -65,6 +71,7 @@ class ReportStateProvider extends ChangeNotifier {
         final data = await _api.get('/reports/$reportId');
         final r = Report.fromJson(data as Map<String, dynamic>);
         _liveAssessments = r.assessments;
+        _liveReportStatus = r.status;
         if (r.isDone || r.isFailed) {
           t.cancel();
           _report = r;
@@ -110,6 +117,7 @@ class ReportStateProvider extends ChangeNotifier {
     _fetchState = ReportFetchState.idle;
     _report = null;
     _liveAssessments = [];
+    _liveReportStatus = null;
     _error = null;
     notifyListeners();
   }

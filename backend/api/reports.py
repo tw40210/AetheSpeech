@@ -89,15 +89,20 @@ async def get_report(
     if not report:
         raise HTTPException(status_code=404, detail="Report not found")
 
-    # Fetch the associated assessments
+    # Fetch the associated assessments. SQL `IN (...)` does NOT preserve input
+    # order, so we re-order them to match `report.answer_ids` (which captures the
+    # user's actual interview question order).
     assessment_ids = [uuid.UUID(aid) for aid in report.answer_ids]
     assessments: list[AnswerAssessmentOut] = []
     if assessment_ids:
         res = await db.execute(
             select(AnswerAssessment).where(AnswerAssessment.id.in_(assessment_ids))
         )
+        by_id = {a.id: a for a in res.scalars().all()}
         assessments = [
-            AnswerAssessmentOut.model_validate(a) for a in res.scalars().all()
+            AnswerAssessmentOut.model_validate(by_id[aid])
+            for aid in assessment_ids
+            if aid in by_id
         ]
 
     return ReportOut(

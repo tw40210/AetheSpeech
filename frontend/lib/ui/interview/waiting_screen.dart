@@ -20,6 +20,10 @@ class _WaitingScreenState extends State<WaitingScreen> {
   // assessmentId → time when we first detected done/failed
   final Map<String, DateTime> _doneAt = {};
 
+  // Timestamps for the report-generation phase
+  DateTime? _reportStartedAt;
+  DateTime? _reportFinishedAt;
+
   late ReportStateProvider _reportState;
 
   @override
@@ -39,12 +43,40 @@ class _WaitingScreenState extends State<WaitingScreen> {
   }
 
   void _onReportChanged() {
+    bool changed = false;
+
     for (final a in _reportState.liveAssessments) {
       if ((a.status == 'done' || a.status == 'failed') &&
           !_doneAt.containsKey(a.id)) {
-        if (mounted) setState(() => _doneAt[a.id] = DateTime.now());
+        _doneAt[a.id] = DateTime.now();
+        changed = true;
       }
     }
+
+    // Stamp report-generation start the moment all answers become terminal.
+    final questions = context.read<InterviewState>().questions;
+    final allAnswersTerminal = questions.isNotEmpty &&
+        questions.every((q) {
+          final byId = {
+            for (final a in _reportState.liveAssessments)
+              if (a.questionId != null) a.questionId!: a,
+          };
+          final a = byId[q.id];
+          return a != null && (a.status == 'done' || a.status == 'failed');
+        });
+
+    if (allAnswersTerminal && _reportStartedAt == null) {
+      _reportStartedAt = DateTime.now();
+      changed = true;
+    }
+
+    final status = _reportState.liveReportStatus;
+    if ((status == 'done' || status == 'failed') && _reportFinishedAt == null) {
+      _reportFinishedAt = DateTime.now();
+      changed = true;
+    }
+
+    if (changed && mounted) setState(() {});
   }
 
   Future<void> _submitAndPoll() async {
@@ -116,6 +148,25 @@ class _WaitingScreenState extends State<WaitingScreen> {
         if (a.questionId != null) a.questionId!: a,
     };
 
+    // Derive report-generation phase indicators
+    final allAnswersTerminal = questions.isNotEmpty &&
+        questions.every((q) {
+          final a = byQuestionId[q.id];
+          return a != null && (a.status == 'done' || a.status == 'failed');
+        });
+
+    final reportStatus = state.liveReportStatus;
+    final isReportDone = reportStatus == 'done';
+    final isReportFailed = reportStatus == 'failed';
+    final isReportTerminal = isReportDone || isReportFailed;
+
+    String reportTimeLabel = '';
+    if (isReportTerminal && _reportStartedAt != null && _reportFinishedAt != null) {
+      reportTimeLabel = _formatDuration(
+        _reportFinishedAt!.difference(_reportStartedAt!),
+      );
+    }
+
     return Scaffold(
       body: Center(
         child: SingleChildScrollView(
@@ -177,9 +228,7 @@ class _WaitingScreenState extends State<WaitingScreen> {
                           }
 
                           return Padding(
-                            padding: EdgeInsets.only(
-                              bottom: i < questions.length - 1 ? 12 : 0,
-                            ),
+                            padding: const EdgeInsets.only(bottom: 12),
                             child: Row(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
@@ -244,6 +293,91 @@ class _WaitingScreenState extends State<WaitingScreen> {
                             ),
                           );
                         }),
+
+                        // ── Report-generation row ─────────────────────────────
+                        Divider(color: cs.outlineVariant, height: 1),
+                        const SizedBox(height: 12),
+                        Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Padding(
+                              padding: const EdgeInsets.only(top: 2),
+                              child: isReportTerminal
+                                  ? Icon(
+                                      isReportDone
+                                          ? Icons.check_circle
+                                          : Icons.highlight_off,
+                                      size: 18,
+                                      color: isReportDone ? Colors.green : cs.error,
+                                    )
+                                  : allAnswersTerminal
+                                      ? const _PulsingDot()
+                                      : Container(
+                                          width: 12,
+                                          height: 12,
+                                          decoration: BoxDecoration(
+                                            color: cs.surfaceContainerHighest,
+                                            shape: BoxShape.circle,
+                                          ),
+                                        ),
+                            ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Row(
+                                    children: [
+                                      Icon(
+                                        Icons.auto_awesome,
+                                        size: 16,
+                                        color: isReportDone
+                                            ? Colors.green
+                                            : isReportFailed
+                                                ? cs.error
+                                                : allAnswersTerminal
+                                                    ? Colors.amber
+                                                    : cs.outline,
+                                      ),
+                                      const SizedBox(width: 6),
+                                      Text(
+                                        'Generating personalised feedback',
+                                        style: TextStyle(
+                                          fontWeight: FontWeight.w700,
+                                          color: (isReportTerminal || allAnswersTerminal)
+                                              ? cs.onSurface
+                                              : cs.outline,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                  Padding(
+                                    padding: const EdgeInsets.only(top: 2),
+                                    child: Text(
+                                      isReportDone
+                                          ? 'Ready in $reportTimeLabel'
+                                          : isReportFailed
+                                              ? 'Failed to generate suggestions'
+                                              : allAnswersTerminal
+                                                  ? 'Synthesising AI coaching suggestions…'
+                                                  : 'Starts after all answers are processed',
+                                      style: Theme.of(context)
+                                          .textTheme
+                                          .labelSmall
+                                          ?.copyWith(
+                                            color: isReportDone
+                                                ? Colors.green
+                                                : isReportFailed
+                                                    ? cs.error
+                                                    : cs.outline,
+                                          ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
                       ],
                     ),
                   ),

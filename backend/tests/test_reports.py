@@ -139,6 +139,31 @@ async def test_get_report_done(client, auth_headers, db_session, mocker):
 
 
 @pytest.mark.asyncio
+async def test_get_report_preserves_answer_order(client, auth_headers, db_session, mocker):
+    """Assessments must be returned in the order of `answer_ids` on the report,
+    matching the user's interview question order — not the DB's internal order."""
+    mocker.patch("api.reports.generate_report.delay")
+
+    _, assessments = await _seed_user_and_assessments(db_session, count=4)
+
+    # Submit with a deliberately scrambled order (not insertion order, not sorted by id)
+    scrambled = [assessments[2], assessments[0], assessments[3], assessments[1]]
+    answer_ids = [str(a.id) for a in scrambled]
+
+    post_resp = await client.post(
+        "/reports",
+        json={"answer_ids": answer_ids},
+        headers=auth_headers,
+    )
+    report_id = post_resp.json()["id"]
+
+    get_resp = await client.get(f"/reports/{report_id}", headers=auth_headers)
+    assert get_resp.status_code == 200
+    returned_ids = [a["id"] for a in get_resp.json()["assessments"]]
+    assert returned_ids == answer_ids
+
+
+@pytest.mark.asyncio
 async def test_get_report_not_found(client, auth_headers):
     resp = await client.get(f"/reports/{uuid.uuid4()}", headers=auth_headers)
     assert resp.status_code == 404

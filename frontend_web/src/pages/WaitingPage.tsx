@@ -1,9 +1,11 @@
+import AutoAwesomeIcon from '@mui/icons-material/AutoAwesome';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import ErrorOutlineIcon from '@mui/icons-material/ErrorOutline';
 import HighlightOffIcon from '@mui/icons-material/HighlightOff';
 import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
 import Card from '@mui/material/Card';
+import Divider from '@mui/material/Divider';
 import Typography from '@mui/material/Typography';
 import { keyframes } from '@mui/system';
 import { useEffect, useRef } from 'react';
@@ -93,12 +95,24 @@ function formatDuration(ms: number): string {
 export default function WaitingPage() {
   const navigate = useNavigate();
   const { answerIds, questions } = useInterview();
-  const { fetchState, error, submitBatch, startPolling, liveAssessments } = useReport();
+  const {
+    fetchState,
+    error,
+    submitBatch,
+    startPolling,
+    liveAssessments,
+    liveReportStatus,
+  } = useReport();
 
   const submittedRef = useRef(false);
 
   // Track when each assessment first becomes done/failed: assessmentId → epoch ms
   const doneAtRef = useRef<Record<string, number>>({});
+
+  // Track when the report-generation phase started/finished (epoch ms).
+  // "Started" = the moment all per-question assessments became terminal.
+  const reportStartedAtRef = useRef<number | null>(null);
+  const reportFinishedAtRef = useRef<number | null>(null);
 
   useEffect(() => {
     if (submittedRef.current) return;
@@ -132,6 +146,33 @@ export default function WaitingPage() {
   liveAssessments.forEach((a) => {
     if (a.question_id) byQuestionId[a.question_id] = a;
   });
+
+  // Derive report-generation phase indicators
+  const allAnswersTerminal =
+    questions.length > 0 &&
+    questions.every((q) => {
+      const a = byQuestionId[q.id];
+      return a && (a.status === 'done' || a.status === 'failed');
+    });
+
+  if (allAnswersTerminal && reportStartedAtRef.current === null) {
+    reportStartedAtRef.current = Date.now();
+  }
+
+  const isReportDone = liveReportStatus === 'done';
+  const isReportFailed = liveReportStatus === 'failed';
+  const isReportTerminal = isReportDone || isReportFailed;
+
+  if (isReportTerminal && reportFinishedAtRef.current === null) {
+    reportFinishedAtRef.current = Date.now();
+  }
+
+  let reportTimeLabel = '';
+  if (isReportTerminal && reportStartedAtRef.current && reportFinishedAtRef.current) {
+    reportTimeLabel = formatDuration(
+      reportFinishedAtRef.current - reportStartedAtRef.current,
+    );
+  }
 
   /* ── Error state ── */
   if (fetchState === ReportFetchState.ERROR) {
@@ -288,6 +329,70 @@ export default function WaitingPage() {
                   </Box>
                 );
               })}
+            </Box>
+
+            {/* Report-generation row */}
+            <Divider sx={{ my: 2 }} />
+            <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 1.5 }}>
+              <Box sx={{ mt: '3px', flexShrink: 0 }}>
+                {isReportTerminal ? (
+                  isReportDone ? (
+                    <CheckCircleIcon sx={{ fontSize: 18, color: 'success.main' }} />
+                  ) : (
+                    <HighlightOffIcon sx={{ fontSize: 18, color: 'error.main' }} />
+                  )
+                ) : allAnswersTerminal ? (
+                  <PulsingDot />
+                ) : (
+                  // Reuse PulsingDot in muted "queued" form before its turn
+                  <Box
+                    sx={{
+                      width: 12,
+                      height: 12,
+                      borderRadius: '50%',
+                      bgcolor: 'action.disabledBackground',
+                    }}
+                  />
+                )}
+              </Box>
+
+              <Box sx={{ flex: 1, minWidth: 0 }}>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75 }}>
+                  <AutoAwesomeIcon
+                    sx={{
+                      fontSize: 16,
+                      color: isReportDone
+                        ? 'success.main'
+                        : isReportFailed
+                          ? 'error.main'
+                          : allAnswersTerminal
+                            ? 'warning.main'
+                            : 'text.disabled',
+                    }}
+                  />
+                  <Typography
+                    variant="body2"
+                    sx={{
+                      fontWeight: 700,
+                      color:
+                        isReportTerminal || allAnswersTerminal
+                          ? 'text.primary'
+                          : 'text.secondary',
+                    }}
+                  >
+                    Generating personalised feedback
+                  </Typography>
+                </Box>
+                <Typography variant="caption" color="text.secondary">
+                  {isReportDone
+                    ? `Ready in ${reportTimeLabel}`
+                    : isReportFailed
+                      ? 'Failed to generate suggestions'
+                      : allAnswersTerminal
+                        ? 'Synthesising AI coaching suggestions…'
+                        : 'Starts after all answers are processed'}
+                </Typography>
+              </Box>
             </Box>
           </Card>
         )}
