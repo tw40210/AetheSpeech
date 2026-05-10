@@ -1,7 +1,7 @@
 /**
  * Browser-native audio recording using MediaRecorder.
  * Produces a Blob (typically audio/webm;codecs=opus in Chrome/Edge,
- * audio/ogg;codecs=opus in Firefox) compatible with Whisper transcription.
+ * audio/ogg;codecs=opus in Firefox) compatible with Audio LLM transcription.
  */
 
 export interface AudioFile {

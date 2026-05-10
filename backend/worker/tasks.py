@@ -47,9 +47,9 @@ def get_sync_db():
 def process_answer(self, answer_id: str):
     """
     Flow 2:
-    1. Transcribe audio (Whisper)
-    2. Label transcript with topic XML tags (DeepSeek, with retry)
-    3. Rephrase + label (DeepSeek)
+    1. Transcribe audio (Audio LLM)
+    2. Label transcript with topic XML tags (Text LLM, with retry)
+    3. Rephrase + label (Text LLM)
     4. Persist results to DB
     """
     logger.info("process_answer started for %s", answer_id)
@@ -126,7 +126,7 @@ def generate_report(self, report_id: str):
     Flow 3:
     1. Wait for all Flow 2 tasks to finish
     2. Collect assessment data
-    3. Generate suggestions (DeepSeek)
+    3. Generate suggestions (Text LLM)
     4. Persist report to DB
     """
     logger.info("generate_report started for %s", report_id)

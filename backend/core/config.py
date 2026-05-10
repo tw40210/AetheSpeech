@@ -19,7 +19,7 @@ class Settings(BaseSettings):
 
     OPENROUTER_BASE_URL: str = "https://openrouter.ai/api/v1"
     WHISPER_MODEL: str = "openai/whisper-large-v3-turbo"
-    LLM_MODEL: str = "deepseek/deepseek-r1-0528"
+    LLM_MODEL: str = "qwen/qwen3-235b-a22b-2507"
 
     XML_LABEL_MAX_RETRIES: int = 3
     REPORT_POLL_TIMEOUT_SECONDS: int = 300

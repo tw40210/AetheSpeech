@@ -13,8 +13,8 @@ A mobile application that helps users practice structured oral presentations. Us
 | HTTP API | Python FastAPI |
 | Background workers | Celery + Redis |
 | Database | PostgreSQL 16 |
-| AI — Transcription | OpenRouter → `openai/whisper-large-v3-turbo` |
-| AI — Labeling / Suggestions | OpenRouter → `deepseek/deepseek-v4-flash` |
+| AI — Transcription | OpenRouter → `AUDIO LLM` |
+| AI — Labeling / Suggestions | OpenRouter → `TEXT LLM` |
 
 ---
 
@@ -135,7 +135,7 @@ AUDIO_TEMP_DIR=/tmp/aethespeech_audio
 Pick topic → 15 s prep per question → 90 s recording → repeat × 10 → wait for report
 
 ### Flow 2 — Answer Assessment (Celery, runs per answer)
-Audio → Whisper transcription → DeepSeek XML labeling (with retry) → DeepSeek rephrasing → save to DB
+Audio → Audio LLM transcription → Text LLM XML labeling (with retry) → Text LLM rephrasing → save to DB
 
 ### Flow 3 — Report Generation (Celery, runs after batch submit)
-Collect all Flow 2 results → DeepSeek suggestions → save report to DB
+Collect all Flow 2 results → Text LLM suggestions → save report to DB

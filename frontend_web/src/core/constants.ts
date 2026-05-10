@@ -4,7 +4,7 @@ export const AppConstants = {
 
   // Interview timing (must match backend config)
   prepTimeSeconds: 5,
-  recordTimeSeconds: 20,
+  recordTimeSeconds: 60,
   questionsPerSession: 3,
 
   // Report polling

@@ -27,7 +27,7 @@ def _headers() -> dict:
 # ── Transcription ─────────────────────────────────────────────────────────────
 
 def transcribe_audio(audio_path: str) -> str:
-    """Call Whisper via OpenRouter and return the transcript text."""
+    """Call Audio LLM via OpenRouter and return the transcript text."""
     path = Path(audio_path)
     with path.open("rb") as f:
         audio_bytes = f.read()
