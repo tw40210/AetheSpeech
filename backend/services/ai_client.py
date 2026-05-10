@@ -148,10 +148,15 @@ def rephrase_transcript(
     question: str,
     transcript: str,
     labels: list[dict],
+    max_retries: int = None,
 ) -> str:
     """
     Rephrase the transcript naturally and label it with the topic's XML tags.
+    Retries up to max_retries times if the XML is invalid.
     """
+    if max_retries is None:
+        max_retries = settings.XML_LABEL_MAX_RETRIES
+
     valid_keys = [l["key"] for l in labels]
     label_defs = "\n".join(f"  <{l['key']}>…</{l['key']}> — {l['name']}" for l in labels)
 
@@ -164,30 +169,45 @@ def rephrase_transcript(
         "Output ONLY the labeled XML — no markdown, no explanation."
     )
     user_content = f"Question: {question}\n\nOriginal answer:\n{transcript}"
+    messages = [
+        {"role": "system", "content": system_prompt},
+        {"role": "user", "content": user_content},
+    ]
 
-    with httpx.Client(timeout=60) as client:
-        response = client.post(
-            f"{settings.OPENROUTER_BASE_URL}/chat/completions",
-            headers=_headers(),
-            json={
-                "model": settings.LLM_MODEL,
-                "messages": [
-                    {"role": "system", "content": system_prompt},
-                    {"role": "user", "content": user_content},
-                ],
-                "temperature": 0.4,
-            },
-        )
-        response.raise_for_status()
+    last_error = ""
+    last_attempt = ""
+    for attempt in range(max_retries):
+        if attempt > 0:
+            retry_hint = build_retry_prompt(last_error, last_attempt)
+            messages.append({"role": "user", "content": retry_hint})
 
-    content = response.json()["choices"][0]["message"]["content"].strip()
-    xml_text = extract_xml_block(content)
+        with httpx.Client(timeout=60) as client:
+            response = client.post(
+                f"{settings.OPENROUTER_BASE_URL}/chat/completions",
+                headers=_headers(),
+                json={
+                    "model": settings.LLM_MODEL,
+                    "messages": messages,
+                    "temperature": 0.4,
+                },
+            )
+            response.raise_for_status()
 
-    is_valid, _ = validate_xml(xml_text, valid_keys)
-    if not is_valid:
-        # Best-effort — return what we have
-        return xml_text
-    return xml_text
+        content = response.json()["choices"][0]["message"]["content"].strip()
+        xml_text = extract_xml_block(content)
+
+        is_valid, error = validate_xml(xml_text, valid_keys)
+        if is_valid:
+            return xml_text
+
+        last_error = error
+        last_attempt = xml_text
+        messages.append({"role": "assistant", "content": content})
+
+    raise ValueError(
+        f"LLM produced invalid rephrased XML after {max_retries} attempts. "
+        f"Last error: {last_error}"
+    )
 
 
 # ── Report Suggestions ────────────────────────────────────────────────────────
