@@ -1,9 +1,12 @@
 """
 One-shot script: creates all tables and seeds topics + questions.
 Run: python init_db.py
+Optional: python init_db.py --input-json path/to/seed.json
 """
 
+import argparse
 import asyncio
+import json
 import uuid
 
 from sqlalchemy import select
@@ -184,12 +187,23 @@ SEED_DATA = [
 ]
 
 
-async def seed():
+def _load_seed_data(input_json: str | None) -> list:
+    if input_json is None:
+        return SEED_DATA
+    with open(input_json, encoding="utf-8") as f:
+        data = json.load(f)
+    if not isinstance(data, list):
+        raise ValueError("JSON seed file must be a list of topic objects")
+    return data
+
+
+async def seed(seed_data: list | None = None):
+    rows = seed_data if seed_data is not None else SEED_DATA
     async with async_engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
 
     async with AsyncSessionLocal() as db:
-        for topic_data in SEED_DATA:
+        for topic_data in rows:
             # Idempotent — skip if already exists
             result = await db.execute(
                 select(Topic).where(Topic.name == topic_data["name"])
@@ -227,4 +241,13 @@ async def seed():
 
 
 if __name__ == "__main__":
-    asyncio.run(seed())
+    parser = argparse.ArgumentParser(description="Create tables and seed topics + questions.")
+    parser.add_argument(
+        "--input-json",
+        dest="input_json",
+        metavar="PATH",
+        help="JSON file to use as seed data instead of built-in SEED_DATA",
+    )
+    args = parser.parse_args()
+    seed_rows = _load_seed_data(args.input_json)
+    asyncio.run(seed(seed_rows))
