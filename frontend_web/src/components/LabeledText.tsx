@@ -77,7 +77,6 @@ export default function LabeledText({ xmlText, labels = [] }: LabeledTextProps) 
 function parseSegments(xmlText: string, labels: TopicLabel[]): Segment[] {
   if (!xmlText) return [];
 
-  const validKeys = new Set(labels.map((l) => l.key));
   const pattern = /<(\w+)>([\s\S]*?)<\/\1>/g;
   const segments: Segment[] = [];
 
@@ -85,7 +84,10 @@ function parseSegments(xmlText: string, labels: TopicLabel[]): Segment[] {
   while ((match = pattern.exec(xmlText)) !== null) {
     const tag = match[1];
     const content = match[2].trim();
-    if ((validKeys.size === 0 || validKeys.has(tag)) && content) {
+    // Keep all XML segments, even when tag is not part of local fallback labels.
+    // Backend topic labels can vary by dataset (e.g. EXECUTION), and filtering
+    // unknown tags here hides real transcript content in report UI.
+    if (content) {
       segments.push({ tag, text: content });
     }
   }

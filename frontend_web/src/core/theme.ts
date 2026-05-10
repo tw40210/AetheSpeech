@@ -106,4 +106,6 @@ export const fallbackLabels: TopicLabel[] = [
   { key: 'SKILLS', name: 'Key skills' },
   { key: 'ACHIEVEMENT', name: 'Notable achievements' },
   { key: 'GOAL', name: 'Future goals' },
+  // Default fallback injected by backend for unlabeled or off-topic speech
+  { key: 'UNCLEAR', name: 'Unclear or incomplete' },
 ];

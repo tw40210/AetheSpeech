@@ -200,12 +200,8 @@ def rephrase_transcript(
         content = response.json()["choices"][0]["message"]["content"].strip()
         xml_text = extract_xml_block(content)
 
-        is_valid, error = validate_xml(
-            xml_text,
-            valid_keys,
-            original_text=transcript,
-            max_word_diff_ratio=settings.XML_WORD_COUNT_DIFF_THRESHOLD,
-        )
+        # No word-count check here: rephrasing intentionally changes the text length
+        is_valid, error = validate_xml(xml_text, valid_keys)
         if is_valid:
             return xml_text
 
