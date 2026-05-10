@@ -1,10 +1,14 @@
 import HelpOutlineIcon from '@mui/icons-material/HelpOutline';
 import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined';
+import PauseCircleOutlineIcon from '@mui/icons-material/PauseCircleOutline';
+import PlayCircleOutlineIcon from '@mui/icons-material/PlayCircleOutline';
 import AppBar from '@mui/material/AppBar';
 import Box from '@mui/material/Box';
 import Divider from '@mui/material/Divider';
+import IconButton from '@mui/material/IconButton';
 import LinearProgress from '@mui/material/LinearProgress';
 import Toolbar from '@mui/material/Toolbar';
+import Tooltip from '@mui/material/Tooltip';
 import Typography from '@mui/material/Typography';
 import { useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
@@ -14,8 +18,16 @@ import { useInterview } from '../context/InterviewContext';
 
 export default function PreparationPage() {
   const navigate = useNavigate();
-  const { currentQuestion, questions, currentIndex, remainingSeconds, startPreparation } =
-    useInterview();
+  const {
+    currentQuestion,
+    questions,
+    currentIndex,
+    remainingSeconds,
+    isPrepPaused,
+    startPreparation,
+    pausePreparation,
+    resumePreparation,
+  } = useInterview();
 
   const startedRef = useRef(false);
 
@@ -118,8 +130,22 @@ export default function PreparationPage() {
             total={AppConstants.prepTimeSeconds}
             size={140}
           />
+          <Tooltip title={isPrepPaused ? 'Resume countdown' : 'Pause countdown'}>
+            <IconButton
+              onClick={isPrepPaused ? resumePreparation : pausePreparation}
+              size="large"
+              color="primary"
+              aria-label={isPrepPaused ? 'Resume countdown' : 'Pause countdown'}
+            >
+              {isPrepPaused ? (
+                <PlayCircleOutlineIcon sx={{ fontSize: 48 }} />
+              ) : (
+                <PauseCircleOutlineIcon sx={{ fontSize: 48 }} />
+              )}
+            </IconButton>
+          </Tooltip>
           <Typography variant="caption" color="text.secondary">
-            Recording will start automatically
+            {isPrepPaused ? 'Countdown paused — tap play to resume' : 'Recording will start automatically'}
           </Typography>
         </Box>
 

@@ -15,6 +15,7 @@ build/
 .ruff_cache/
 htmlcov/
 .coverage
+backend/seed_json/
 
 # ── Environment variables ────────────────────────────────────
 .env

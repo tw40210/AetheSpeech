@@ -29,11 +29,14 @@ interface InterviewContextValue {
   answerIds: string[];
   selectedTopic: Topic | null;
   remainingSeconds: number;
+  isPrepPaused: boolean;
   error: string | null;
   isLastQuestion: boolean;
   setSelectedTopic: (topic: Topic) => void;
   loadQuestions: (topicId: string, amount: number) => Promise<void>;
   startPreparation: (seconds: number, onComplete: () => void) => void;
+  pausePreparation: () => void;
+  resumePreparation: () => void;
   startRecording: (
     question: Question,
     seconds: number,
@@ -53,9 +56,12 @@ export function InterviewProvider({ children }: { children: ReactNode }) {
   const [answerIds, setAnswerIds] = useState<string[]>([]);
   const [selectedTopic, setSelectedTopic] = useState<Topic | null>(null);
   const [remainingSeconds, setRemainingSeconds] = useState(0);
+  const [isPrepPaused, setIsPrepPaused] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const remainingRef = useRef(0);
+  const onCompleteRef = useRef<(() => void) | null>(null);
 
   const clearTimer = useCallback(() => {
     if (timerRef.current !== null) {
@@ -102,20 +108,40 @@ export function InterviewProvider({ children }: { children: ReactNode }) {
     (seconds: number, onComplete: () => void) => {
       clearTimer();
       setPhase(InterviewPhase.PREPARING);
+      setIsPrepPaused(false);
       setRemainingSeconds(seconds);
+      remainingRef.current = seconds;
+      onCompleteRef.current = onComplete;
 
-      let remaining = seconds;
       timerRef.current = setInterval(() => {
-        remaining -= 1;
-        setRemainingSeconds(remaining);
-        if (remaining <= 0) {
+        remainingRef.current -= 1;
+        setRemainingSeconds(remainingRef.current);
+        if (remainingRef.current <= 0) {
           clearTimer();
-          onComplete();
+          onCompleteRef.current?.();
         }
       }, 1000);
     },
     [clearTimer],
   );
+
+  const pausePreparation = useCallback(() => {
+    clearTimer();
+    setIsPrepPaused(true);
+  }, [clearTimer]);
+
+  const resumePreparation = useCallback(() => {
+    if (remainingRef.current <= 0) return;
+    setIsPrepPaused(false);
+    timerRef.current = setInterval(() => {
+      remainingRef.current -= 1;
+      setRemainingSeconds(remainingRef.current);
+      if (remainingRef.current <= 0) {
+        clearTimer();
+        onCompleteRef.current?.();
+      }
+    }, 1000);
+  }, [clearTimer]);
 
   /** Start recording + countdown; calls onTimeUp when timer reaches zero. */
   const startRecording = useCallback(
@@ -195,11 +221,14 @@ export function InterviewProvider({ children }: { children: ReactNode }) {
         answerIds,
         selectedTopic,
         remainingSeconds,
+        isPrepPaused,
         error,
         isLastQuestion,
         setSelectedTopic,
         loadQuestions,
         startPreparation,
+        pausePreparation,
+        resumePreparation,
         startRecording,
         stopRecordingAndUpload,
         advanceQuestion,

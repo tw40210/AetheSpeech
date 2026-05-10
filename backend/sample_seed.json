@@ -1,0 +1,35 @@
+[
+    {
+      "name": "Business Report",
+      "description": "Practice presenting structured business updates using the WWAD framework.",
+      "labels": [
+        { "key": "WWAD", "name": "What we are doing" },
+        { "key": "WWSDI", "name": "Why we should do it" },
+        { "key": "WWHD", "name": "What we have done" },
+        { "key": "NS", "name": "Next step" }
+      ],
+      "questions": [
+        {
+          "text": "Describe the main initiative your team is currently working on.",
+          "context": "Focus on the project goal and the team responsible."
+        },
+        {
+          "text": "What risks are you currently managing and how?"
+        }
+      ]
+    },
+    {
+      "name": "Quick Demo Topic",
+      "description": "Minimal example with one question.",
+      "labels": [
+        { "key": "A", "name": "First label" },
+        { "key": "B", "name": "Second label" }
+      ],
+      "questions": [
+        {
+          "text": "Say something interesting in under one minute.",
+          "context": "Optional helper text shown with the prompt."
+        }
+      ]
+    }
+  ]

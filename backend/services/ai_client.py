@@ -4,6 +4,7 @@ All functions are synchronous for use inside Celery tasks.
 """
 
 import base64
+import logging
 from pathlib import Path
 
 import httpx
@@ -14,6 +15,8 @@ from services.xml_parser import (
     extract_xml_block,
     validate_xml,
 )
+
+logger = logging.getLogger(__name__)
 
 
 def _headers() -> dict:
@@ -65,6 +68,8 @@ def transcribe_audio(audio_path: str) -> str:
 # ── XML Labeling ──────────────────────────────────────────────────────────────
 
 def _label_system_prompt(labels: list[dict]) -> str:
+    # logger.info("Label definitions received: %s", labels)
+    labels += [{'key': 'UNCLEAR', 'name': 'Unclear or incomplete'}]
     label_defs = "\n".join(f"  <{l['key']}>…</{l['key']}> — {l['name']}" for l in labels)
     keys = [l["key"] for l in labels]
     return (
