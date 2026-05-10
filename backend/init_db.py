@@ -12,6 +12,7 @@ import uuid
 from sqlalchemy import select
 
 from core.database import AsyncSessionLocal, async_engine, Base
+from core.topic_labels import ensure_default_unclear_label
 import models  # noqa: F401 — registers all ORM models
 
 from models.topic import Topic, Question
@@ -204,19 +205,28 @@ async def seed(seed_data: list | None = None):
 
     async with AsyncSessionLocal() as db:
         for topic_data in rows:
+            labels = ensure_default_unclear_label(topic_data.get("labels"))
             # Idempotent — skip if already exists
             result = await db.execute(
                 select(Topic).where(Topic.name == topic_data["name"])
             )
-            if result.scalar_one_or_none():
-                print(f"  Topic '{topic_data['name']}' already exists — skipping")
+            existing_topic = result.scalar_one_or_none()
+            if existing_topic:
+                updated_labels = ensure_default_unclear_label(existing_topic.labels)
+                if updated_labels != (existing_topic.labels or []):
+                    existing_topic.labels = updated_labels
+                    print(
+                        f"  Topic '{topic_data['name']}' already exists — added UNCLEAR label"
+                    )
+                else:
+                    print(f"  Topic '{topic_data['name']}' already exists — skipping")
                 continue
 
             topic = Topic(
                 id=uuid.uuid4(),
                 name=topic_data["name"],
                 description=topic_data["description"],
-                labels=topic_data["labels"],
+                labels=labels,
             )
             db.add(topic)
             await db.flush()

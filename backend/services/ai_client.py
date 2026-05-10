@@ -69,7 +69,6 @@ def transcribe_audio(audio_path: str) -> str:
 
 def _label_system_prompt(labels: list[dict]) -> str:
     # logger.info("Label definitions received: %s", labels)
-    labels += [{'key': 'UNCLEAR', 'name': 'Unclear or incomplete'}]
     label_defs = "\n".join(f"  <{l['key']}>…</{l['key']}> — {l['name']}" for l in labels)
     keys = [l["key"] for l in labels]
     return (
@@ -128,7 +127,12 @@ def label_transcript(
         content = response.json()["choices"][0]["message"]["content"].strip()
         xml_text = extract_xml_block(content)
 
-        is_valid, error = validate_xml(xml_text, valid_keys)
+        is_valid, error = validate_xml(
+            xml_text,
+            valid_keys,
+            original_text=transcript,
+            max_word_diff_ratio=settings.XML_WORD_COUNT_DIFF_THRESHOLD,
+        )
         if is_valid:
             return xml_text
 
@@ -196,7 +200,12 @@ def rephrase_transcript(
         content = response.json()["choices"][0]["message"]["content"].strip()
         xml_text = extract_xml_block(content)
 
-        is_valid, error = validate_xml(xml_text, valid_keys)
+        is_valid, error = validate_xml(
+            xml_text,
+            valid_keys,
+            original_text=transcript,
+            max_word_diff_ratio=settings.XML_WORD_COUNT_DIFF_THRESHOLD,
+        )
         if is_valid:
             return xml_text
 

@@ -46,7 +46,8 @@ async def test_fetch_topics_returns_seeded(client, auth_headers, db_session):
     data = resp.json()
     assert len(data) == 1
     assert data[0]["name"] == topic.name
-    assert len(data[0]["labels"]) == 2
+    assert len(data[0]["labels"]) == 3  # seeded WWAD + WWHD + default UNCLEAR
+    assert any(l["key"] == "UNCLEAR" for l in data[0]["labels"])
 
 
 @pytest.mark.asyncio

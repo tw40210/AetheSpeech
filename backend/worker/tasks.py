@@ -13,6 +13,7 @@ from celery.utils.log import get_task_logger
 from core.celery_app import celery_app
 from core.config import settings
 from core.database import SyncSessionLocal
+from core.topic_labels import ensure_default_unclear_label
 from models.answer import AnswerAssessment
 from models.report import SuggestionReport
 from models.topic import Question, Topic
@@ -72,7 +73,7 @@ def process_answer(self, answer_id: str):
             assessment.raw_transcript = raw_transcript
             db.commit()
 
-            # ── Fetch labels for this question's topic ────────────────────
+            # ── Fetch labels for this question's topic (default to UNCLEAR) ────
             labels: list[dict] = []
             question_text = ""
             if assessment.question_id:
@@ -81,17 +82,9 @@ def process_answer(self, answer_id: str):
                     question_text = question.text
                     topic = db.get(Topic, question.topic_id)
                     if topic:
-                        labels = topic.labels or []
+                        labels = ensure_default_unclear_label(topic.labels or [])
 
-            if not labels:
-                logger.warning(
-                    "No labels found for assessment %s — skipping XML labeling", answer_id
-                )
-                assessment.labeled_transcript = raw_transcript
-                assessment.rephrased_transcript = raw_transcript
-                assessment.status = "done"
-                db.commit()
-                return
+            labels = ensure_default_unclear_label(labels)
 
             # ── Step 2: XML Labeling ──────────────────────────────────────
             labeled = label_transcript(raw_transcript, labels)

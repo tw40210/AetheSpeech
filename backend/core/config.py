@@ -22,6 +22,7 @@ class Settings(BaseSettings):
     LLM_MODEL: str = "qwen/qwen3-235b-a22b-2507"
 
     XML_LABEL_MAX_RETRIES: int = 3
+    XML_WORD_COUNT_DIFF_THRESHOLD: float = 0.1
     REPORT_POLL_TIMEOUT_SECONDS: int = 300
 
     class Config:

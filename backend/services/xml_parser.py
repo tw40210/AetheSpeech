@@ -21,7 +21,16 @@ def extract_xml_block(text: str) -> str:
     return text[start:]
 
 
-def validate_xml(xml_text: str, valid_labels: list[str]) -> tuple[bool, str]:
+def _tokenize_words(text: str) -> list[str]:
+    return re.findall(r"\b[\w']+\b", text)
+
+
+def validate_xml(
+    xml_text: str,
+    valid_labels: list[str],
+    original_text: str | None = None,
+    max_word_diff_ratio: float = 0.1,
+) -> tuple[bool, str]:
     """
     Returns (is_valid, error_message).
 
@@ -29,6 +38,8 @@ def validate_xml(xml_text: str, valid_labels: list[str]) -> tuple[bool, str]:
     - Must be parseable XML.
     - Every tag must be one of the valid_labels.
     - The root must not be a dummy wrapper; all children must be label tags.
+    - If original_text is provided, XML text content must preserve word count
+      within max_word_diff_ratio.
     """
     xml_text = extract_xml_block(xml_text)
 
@@ -42,6 +53,26 @@ def validate_xml(xml_text: str, valid_labels: list[str]) -> tuple[bool, str]:
     invalid_tags = [child.tag for child in root if child.tag not in valid_labels]
     if invalid_tags:
         return False, f"Unknown label tags: {invalid_tags}. Allowed: {valid_labels}"
+
+    if original_text is not None:
+        extracted_text = " ".join("".join(child.itertext()) for child in root).strip()
+        original_count = len(_tokenize_words(original_text))
+        extracted_count = len(_tokenize_words(extracted_text))
+
+        if original_count == 0:
+            diff_ratio = 0.0 if extracted_count == 0 else 1.0
+        else:
+            diff_ratio = abs(extracted_count - original_count) / original_count
+
+        if diff_ratio > max_word_diff_ratio:
+            return (
+                False,
+                (
+                    "Word count differs too much from original transcript: "
+                    f"original={original_count}, labeled={extracted_count}, "
+                    f"diff_ratio={diff_ratio:.3f}, max={max_word_diff_ratio:.3f}"
+                ),
+            )
 
     return True, ""
 

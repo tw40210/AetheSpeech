@@ -121,7 +121,7 @@ class TestProcessAnswer:
             from worker import tasks
             tasks.process_answer(str(uuid.uuid4()))  # Should not raise
 
-    def test_no_labels_skips_xml(self):
+    def test_no_labels_uses_unclear_fallback(self):
         assessment = _make_assessment()
         question = _make_question()
         topic = MagicMock()
@@ -136,8 +136,8 @@ class TestProcessAnswer:
 
         with (
             patch("worker.tasks.transcribe_audio", return_value="Hello"),
-            patch("worker.tasks.label_transcript") as mock_label,
-            patch("worker.tasks.rephrase_transcript") as mock_rephrase,
+            patch("worker.tasks.label_transcript", return_value="<UNCLEAR>Hello</UNCLEAR>") as mock_label,
+            patch("worker.tasks.rephrase_transcript", return_value="<UNCLEAR>Hello</UNCLEAR>") as mock_rephrase,
             patch("worker.tasks.delete_audio"),
             patch("worker.tasks.get_sync_db") as mock_ctx,
         ):
@@ -146,8 +146,8 @@ class TestProcessAnswer:
             from worker import tasks
             tasks.process_answer(str(assessment.id))
 
-        mock_label.assert_not_called()
-        mock_rephrase.assert_not_called()
+        mock_label.assert_called_once()
+        mock_rephrase.assert_called_once()
         assert assessment.status == "done"
 
 
@@ -235,3 +235,31 @@ class TestXmlParser:
         result = extract_plain_text(xml)
         assert "Hello" in result
         assert "World" in result
+
+    def test_validate_xml_word_count_preserved_within_threshold(self):
+        from services.xml_parser import validate_xml
+
+        original = "We are building a feature for internal users today"
+        xml = "<WWAD>We are building a feature for internal users.</WWAD>"
+        is_valid, error = validate_xml(
+            xml,
+            ["WWAD", "WWHD"],
+            original_text=original,
+            max_word_diff_ratio=0.2,
+        )
+        assert is_valid
+        assert error == ""
+
+    def test_validate_xml_word_count_difference_exceeds_threshold(self):
+        from services.xml_parser import validate_xml
+
+        original = "We are building a feature for internal users today"
+        xml = "<WWAD>We are building a feature.</WWAD>"
+        is_valid, error = validate_xml(
+            xml,
+            ["WWAD", "WWHD"],
+            original_text=original,
+            max_word_diff_ratio=0.1,
+        )
+        assert not is_valid
+        assert "Word count differs too much" in error

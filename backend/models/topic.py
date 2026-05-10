@@ -1,10 +1,11 @@
 import uuid
 from datetime import datetime
 
-from sqlalchemy import DateTime, ForeignKey, JSON, String, Text, func
+from sqlalchemy import DateTime, ForeignKey, JSON, String, Text, event, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from core.database import Base
+from core.topic_labels import ensure_default_unclear_label
 from models.user import GUID
 
 
@@ -28,6 +29,11 @@ class Topic(Base):
     questions: Mapped[list["Question"]] = relationship(
         back_populates="topic", lazy="select", cascade="all, delete-orphan"
     )
+
+
+@event.listens_for(Topic, "before_insert")
+def _topic_ensure_default_unclear_label(mapper, connection, target: "Topic") -> None:
+    target.labels = ensure_default_unclear_label(target.labels)
 
 
 class Question(Base):

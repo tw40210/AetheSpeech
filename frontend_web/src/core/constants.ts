@@ -5,10 +5,10 @@ export const AppConstants = {
   // Interview timing (must match backend config)
   prepTimeSeconds: 5,
   recordTimeSeconds: 60,
-  questionsPerSession: 3,
+  questionsPerSession: 1,
 
   // Report polling
-  pollIntervalMs: 5000,
+  pollIntervalMs: 2000,
   pollTimeoutMs: 300000,
 
   // LocalStorage keys
