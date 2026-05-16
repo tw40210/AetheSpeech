@@ -10,6 +10,7 @@ export interface Topic {
   name: string;
   description?: string;
   labels: TopicLabel[];
+  is_own: boolean;
 }
 
 export interface Question {

@@ -25,6 +25,9 @@ class Settings(BaseSettings):
     XML_WORD_COUNT_DIFF_THRESHOLD: float = 0.1
     REPORT_POLL_TIMEOUT_SECONDS: int = 300
 
+    # User-uploaded topics
+    MAX_USER_TOPICS: int = 10
+
     class Config:
         env_file = ".env"
         extra = "ignore"

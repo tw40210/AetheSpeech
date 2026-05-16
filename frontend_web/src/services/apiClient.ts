@@ -17,6 +17,9 @@ class ApiClient {
 
   constructor() {
     this.baseUrl = AppConstants.baseUrl;
+    // Read persisted token synchronously so the first request after refresh
+    // includes Authorization before AuthProvider's useEffect runs.
+    this.token = localStorage.getItem(AppConstants.tokenKey);
   }
 
   setToken(token: string | null): void {
@@ -63,6 +66,31 @@ class ApiClient {
         ...this.authHeader(),
       },
       body: JSON.stringify(body),
+    });
+    return this.handleResponse<T>(res);
+  }
+
+  async delete<T = unknown>(path: string): Promise<T> {
+    const res = await fetch(`${this.baseUrl}${path}`, {
+      method: 'DELETE',
+      headers: {
+        'Content-Type': 'application/json',
+        ...this.authHeader(),
+      },
+    });
+    return this.handleResponse<T>(res);
+  }
+
+  /**
+   * Multipart POST for a single file (e.g. JSON topic upload).
+   */
+  async postFile<T = unknown>(path: string, file: File, fieldName = 'file'): Promise<T> {
+    const formData = new FormData();
+    formData.append(fieldName, file);
+    const res = await fetch(`${this.baseUrl}${path}`, {
+      method: 'POST',
+      headers: this.authHeader(),
+      body: formData,
     });
     return this.handleResponse<T>(res);
   }

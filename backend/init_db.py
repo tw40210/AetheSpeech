@@ -208,7 +208,10 @@ async def seed(seed_data: list | None = None):
             labels = ensure_default_unclear_label(topic_data.get("labels"))
             # Idempotent — skip if already exists
             result = await db.execute(
-                select(Topic).where(Topic.name == topic_data["name"])
+                select(Topic).where(
+                    Topic.name == topic_data["name"],
+                    Topic.user_id == None,  # noqa: E711 — only check public topics
+                )
             )
             existing_topic = result.scalar_one_or_none()
             if existing_topic:
