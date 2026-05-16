@@ -2,7 +2,7 @@
 Shared test fixtures.
 
 Uses an in-process async SQLite database so tests run without Docker.
-The Celery worker and OpenRouter calls are mocked throughout.
+The background worker and OpenRouter calls are mocked throughout.
 """
 
 import pytest

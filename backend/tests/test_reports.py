@@ -50,9 +50,7 @@ async def _seed_user_and_assessments(db_session, email="rep@example.com", count=
 
 
 @pytest.mark.asyncio
-async def test_submit_report_success(client, auth_headers, db_session, mocker):
-    mocker.patch("api.reports.generate_report.delay")
-
+async def test_submit_report_success(client, auth_headers, db_session):
     _, assessments = await _seed_user_and_assessments(db_session)
     answer_ids = [str(a.id) for a in assessments]
 
@@ -68,9 +66,7 @@ async def test_submit_report_success(client, auth_headers, db_session, mocker):
 
 
 @pytest.mark.asyncio
-async def test_submit_report_empty_ids(client, auth_headers, mocker):
-    mocker.patch("api.reports.generate_report.delay")
-
+async def test_submit_report_empty_ids(client, auth_headers):
     resp = await client.post(
         "/reports",
         json={"answer_ids": []},
@@ -80,9 +76,7 @@ async def test_submit_report_empty_ids(client, auth_headers, mocker):
 
 
 @pytest.mark.asyncio
-async def test_get_report_pending(client, auth_headers, db_session, mocker):
-    mocker.patch("api.reports.generate_report.delay")
-
+async def test_get_report_pending(client, auth_headers, db_session):
     _, assessments = await _seed_user_and_assessments(db_session)
     answer_ids = [str(a.id) for a in assessments]
 
@@ -101,9 +95,7 @@ async def test_get_report_pending(client, auth_headers, db_session, mocker):
 
 
 @pytest.mark.asyncio
-async def test_get_report_done(client, auth_headers, db_session, mocker):
-    mocker.patch("api.reports.generate_report.delay")
-
+async def test_get_report_done(client, auth_headers, db_session):
     _, assessments = await _seed_user_and_assessments(db_session)
     answer_ids = [str(a.id) for a in assessments]
 
@@ -139,11 +131,9 @@ async def test_get_report_done(client, auth_headers, db_session, mocker):
 
 
 @pytest.mark.asyncio
-async def test_get_report_preserves_answer_order(client, auth_headers, db_session, mocker):
+async def test_get_report_preserves_answer_order(client, auth_headers, db_session):
     """Assessments must be returned in the order of `answer_ids` on the report,
     matching the user's interview question order — not the DB's internal order."""
-    mocker.patch("api.reports.generate_report.delay")
-
     _, assessments = await _seed_user_and_assessments(db_session, count=4)
 
     # Submit with a deliberately scrambled order (not insertion order, not sorted by id)
@@ -177,9 +167,7 @@ async def test_report_history_empty(client, auth_headers):
 
 
 @pytest.mark.asyncio
-async def test_report_history_returns_user_reports(client, auth_headers, db_session, mocker):
-    mocker.patch("api.reports.generate_report.delay")
-
+async def test_report_history_returns_user_reports(client, auth_headers, db_session):
     _, assessments = await _seed_user_and_assessments(db_session)
     answer_ids = [str(a.id) for a in assessments]
 

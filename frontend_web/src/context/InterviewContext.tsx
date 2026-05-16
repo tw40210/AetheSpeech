@@ -21,6 +21,12 @@ export enum InterviewPhase {
   DONE = 'done',
 }
 
+/** Returned after a successful upload — includes the full batch so far. */
+export interface UploadResult {
+  answerId: string;
+  answerIds: string[];
+}
+
 interface InterviewContextValue {
   phase: InterviewPhase;
   questions: Question[];
@@ -42,7 +48,7 @@ interface InterviewContextValue {
     seconds: number,
     onTimeUp: () => void,
   ) => Promise<void>;
-  stopRecordingAndUpload: (question: Question) => Promise<string | null>;
+  stopRecordingAndUpload: (question: Question) => Promise<UploadResult | null>;
   advanceQuestion: () => void;
   reset: () => void;
 }
@@ -62,6 +68,7 @@ export function InterviewProvider({ children }: { children: ReactNode }) {
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const remainingRef = useRef(0);
   const onCompleteRef = useRef<(() => void) | null>(null);
+  const answerIdsRef = useRef<string[]>([]);
 
   const clearTimer = useCallback(() => {
     if (timerRef.current !== null) {
@@ -72,6 +79,10 @@ export function InterviewProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => () => clearTimer(), [clearTimer]);
 
+  useEffect(() => {
+    answerIdsRef.current = answerIds;
+  }, [answerIds]);
+
   const reset = useCallback(() => {
     clearTimer();
     audioService.cancel();
@@ -79,6 +90,7 @@ export function InterviewProvider({ children }: { children: ReactNode }) {
     setQuestions([]);
     setCurrentIndex(0);
     setAnswerIds([]);
+    answerIdsRef.current = [];
     setSelectedTopic(null);
     setRemainingSeconds(0);
     setError(null);
@@ -94,6 +106,7 @@ export function InterviewProvider({ children }: { children: ReactNode }) {
         setQuestions(data);
         setCurrentIndex(0);
         setAnswerIds([]);
+        answerIdsRef.current = [];
       } catch (e) {
         const msg = e instanceof Error ? e.message : String(e);
         setError(msg);
@@ -170,7 +183,7 @@ export function InterviewProvider({ children }: { children: ReactNode }) {
    * Returns the answerId on success, null on failure.
    */
   const stopRecordingAndUpload = useCallback(
-    async (question: Question): Promise<string | null> => {
+    async (question: Question): Promise<UploadResult | null> => {
       clearTimer();
       setPhase(InterviewPhase.UPLOADING);
 
@@ -187,8 +200,10 @@ export function InterviewProvider({ children }: { children: ReactNode }) {
           { question_id: question.id },
           audioFile,
         );
-        setAnswerIds((prev) => [...prev, resp.answer_id]);
-        return resp.answer_id;
+        const nextIds = [...answerIdsRef.current, resp.answer_id];
+        answerIdsRef.current = nextIds;
+        setAnswerIds(nextIds);
+        return { answerId: resp.answer_id, answerIds: nextIds };
       } catch (e) {
         const msg = e instanceof Error ? e.message : String(e);
         setError(msg);

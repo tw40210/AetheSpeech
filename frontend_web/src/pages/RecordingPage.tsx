@@ -50,10 +50,15 @@ export default function RecordingPage() {
     if (done || phase === InterviewPhase.UPLOADING) return;
     if (!currentQuestion) return;
     setDone(true);
-    await stopRecordingAndUpload(currentQuestion);
+
+    const result = await stopRecordingAndUpload(currentQuestion);
+    if (!result) return;
 
     if (isLastQuestion) {
-      navigate('/interview/wait', { replace: true });
+      navigate('/interview/wait', {
+        replace: true,
+        state: { answerIds: result.answerIds },
+      });
     } else {
       advanceQuestion();
       navigate('/interview/prepare', { replace: true });

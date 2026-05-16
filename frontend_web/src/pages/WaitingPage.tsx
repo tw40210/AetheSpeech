@@ -9,7 +9,7 @@ import Divider from '@mui/material/Divider';
 import Typography from '@mui/material/Typography';
 import { keyframes } from '@mui/system';
 import { useEffect, useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { useInterview } from '../context/InterviewContext';
 import { ReportFetchState, useReport } from '../context/ReportContext';
 import type { AnswerAssessment } from '../core/types';
@@ -92,9 +92,16 @@ function formatDuration(ms: number): string {
 
 // ── Page ──────────────────────────────────────────────────────────────────────
 
+type WaitLocationState = {
+  answerIds?: string[];
+};
+
 export default function WaitingPage() {
   const navigate = useNavigate();
-  const { answerIds, questions } = useInterview();
+  const location = useLocation();
+  const { answerIds: contextAnswerIds, questions } = useInterview();
+  const batchAnswerIds =
+    (location.state as WaitLocationState | null)?.answerIds ?? contextAnswerIds;
   const {
     fetchState,
     error,
@@ -118,13 +125,13 @@ export default function WaitingPage() {
     if (submittedRef.current) return;
     submittedRef.current = true;
 
-    if (!answerIds || answerIds.length === 0) {
+    if (!batchAnswerIds || batchAnswerIds.length === 0) {
       navigate('/dashboard', { replace: true });
       return;
     }
 
     (async () => {
-      const reportId = await submitBatch(answerIds);
+      const reportId = await submitBatch(batchAnswerIds);
       if (!reportId) return;
 
       startPolling(reportId, {

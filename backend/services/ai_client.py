@@ -1,6 +1,6 @@
 """
 Wrapper around OpenRouter API calls.
-All functions are synchronous for use inside Celery tasks.
+All functions are synchronous for use inside the background worker.
 """
 
 import base64

@@ -12,8 +12,6 @@ from models.report import SuggestionReport
 from models.user import User
 from schemas.report_schema import ReportOut, ReportRequest, ReportSummary
 from schemas.answer_schema import AnswerAssessmentOut
-from worker.tasks import generate_report
-
 router = APIRouter(prefix="/reports", tags=["reports"])
 
 
@@ -38,8 +36,6 @@ async def submit_report(
     await db.flush()
     await db.refresh(report)
     await db.commit()
-
-    generate_report.delay(str(report.id))
 
     return ReportOut(
         id=report.id,

@@ -26,7 +26,6 @@ async def _seed_question(db_session) -> Question:
 @pytest.mark.asyncio
 async def test_submit_answer_success(client, auth_headers, db_session, mocker):
     mocker.patch("api.answers.save_audio", return_value="/tmp/fake.m4a")
-    mocker.patch("api.answers.process_answer.delay")
 
     question = await _seed_question(db_session)
     audio_content = b"fake-audio-bytes"
@@ -46,7 +45,6 @@ async def test_submit_answer_success(client, auth_headers, db_session, mocker):
 @pytest.mark.asyncio
 async def test_submit_answer_empty_audio(client, auth_headers, db_session, mocker):
     mocker.patch("api.answers.save_audio", return_value="/tmp/fake.m4a")
-    mocker.patch("api.answers.process_answer.delay")
 
     question = await _seed_question(db_session)
 
@@ -71,21 +69,28 @@ async def test_submit_answer_requires_auth(client, db_session):
 
 
 @pytest.mark.asyncio
-async def test_submit_answer_triggers_celery(client, auth_headers, db_session, mocker):
-    mock_save = mocker.patch("api.answers.save_audio", return_value="/tmp/test.m4a")
-    mock_delay = mocker.patch("api.answers.process_answer.delay")
+async def test_submit_answer_persists_pending_row(client, auth_headers, db_session, mocker):
+    from sqlalchemy import select
+
+    mocker.patch("api.answers.save_audio", return_value="/tmp/test.m4a")
 
     question = await _seed_question(db_session)
 
-    await client.post(
+    resp = await client.post(
         "/answers",
         headers=auth_headers,
         data={"question_id": str(question.id)},
         files={"audio": ("a.m4a", io.BytesIO(b"audio"), "audio/m4a")},
     )
+    assert resp.status_code == 202
 
-    mock_save.assert_called_once()
-    mock_delay.assert_called_once()
+    result = await db_session.execute(
+        select(AnswerAssessment).where(
+            AnswerAssessment.id == uuid.UUID(resp.json()["answer_id"])
+        )
+    )
+    row = result.scalar_one()
+    assert row.status == "pending"
 
 
 @pytest.mark.asyncio

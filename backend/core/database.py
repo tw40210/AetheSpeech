@@ -23,7 +23,7 @@ AsyncSessionLocal = async_sessionmaker(
 )
 
 
-# ── Sync engine (Celery workers) ──────────────────────────────────────────────
+# ── Sync engine (background worker) ──────────────────────────────────────────
 sync_engine = create_engine(
     settings.SYNC_DATABASE_URL,
     pool_pre_ping=True,

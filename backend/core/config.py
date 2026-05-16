@@ -4,7 +4,6 @@ from pydantic_settings import BaseSettings
 class Settings(BaseSettings):
     DATABASE_URL: str = "postgresql+asyncpg://aethespeech:password@localhost:5432/aethespeech"
     SYNC_DATABASE_URL: str = "postgresql+psycopg2://aethespeech:password@localhost:5432/aethespeech"
-    REDIS_URL: str = "redis://localhost:6379"
     OPENROUTER_API_KEY: str = ""
     SECRET_KEY: str = "dev-secret-key-change-in-production"
     ALGORITHM: str = "HS256"
@@ -24,6 +23,7 @@ class Settings(BaseSettings):
     XML_LABEL_MAX_RETRIES: int = 3
     XML_WORD_COUNT_DIFF_THRESHOLD: float = 0.1
     REPORT_POLL_TIMEOUT_SECONDS: int = 300
+    WORKER_POLL_INTERVAL_SECONDS: int = 2
 
     # User-uploaded topics
     MAX_USER_TOPICS: int = 10

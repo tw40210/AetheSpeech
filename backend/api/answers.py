@@ -10,7 +10,6 @@ from models.answer import AnswerAssessment
 from models.user import User
 from schemas.answer_schema import AnswerSubmitResponse
 from services.audio_service import save_audio
-from worker.tasks import process_answer
 
 router = APIRouter(prefix="/answers", tags=["answers"])
 
@@ -39,10 +38,7 @@ async def submit_answer(
     audio_path = await save_audio(str(assessment.id), audio_bytes)
     assessment.audio_path = audio_path
 
-    # Commit so the worker can read the row
+    # Commit — Postgres worker picks up status=pending rows (Flow 2)
     await db.commit()
-
-    # Fire-and-forget Celery task (Flow 2)
-    process_answer.delay(str(assessment.id))
 
     return AnswerSubmitResponse(answer_id=assessment.id, status="pending")

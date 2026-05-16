@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Start local dev stack: Postgres + Redis (Docker), API, Celery, web frontend.
+# Start local dev stack: Postgres (Docker), API, background worker, web frontend.
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -13,7 +13,7 @@ usage() {
   cat <<'EOF'
 Usage: scripts/dev.sh [options]
 
-Starts docker compose (Postgres + Redis), then uvicorn, Celery, and the web frontend.
+Starts docker compose (Postgres), then uvicorn, the Postgres worker, and the web frontend.
 
 Options:
   --no-docker       Skip docker compose (infra already running)
@@ -85,7 +85,7 @@ start_frontend() {
 }
 
 if ! $NO_DOCKER; then
-  echo "Starting Postgres and Redis (docker compose)..."
+  echo "Starting Postgres (docker compose)..."
   if docker compose up -d --wait 2>/dev/null; then
     :
   else
@@ -95,18 +95,14 @@ if ! $NO_DOCKER; then
     until docker compose exec -T postgres pg_isready -U aethespeech -d aethespeech >/dev/null 2>&1; do
       sleep 1
     done
-    echo "  Waiting for Redis..."
-    until docker compose exec -T redis redis-cli ping 2>/dev/null | grep -q PONG; do
-      sleep 1
-    done
   fi
 fi
 
 echo "Starting API (uvicorn) on http://0.0.0.0:8000 ..."
 start_service api "$ROOT/backend" uvicorn main:app --reload --host 0.0.0.0 --port 8000
 
-echo "Starting Celery worker..."
-start_service celery "$ROOT/backend" celery -A core.celery_app worker --loglevel=info --concurrency=4
+echo "Starting background worker (python -m worker)..."
+start_service worker "$ROOT/backend" python -m worker
 
 echo "Starting web frontend (Vite) on http://localhost:3000 ..."
 start_frontend

@@ -11,7 +11,7 @@ A mobile application that helps users practice structured oral presentations. Us
 | Mobile frontend | Flutter (Material 3) |
 | Web frontend | React 18 + MUI v5 |
 | HTTP API | Python FastAPI |
-| Background workers | Celery + Redis |
+| Background workers | Postgres-polled Python worker (`python -m worker`) |
 | Database | PostgreSQL 16 |
 | AI — Transcription | OpenRouter → `AUDIO LLM` |
 | AI — Labeling / Suggestions | OpenRouter → `TEXT LLM` |
@@ -28,7 +28,7 @@ A mobile application that helps users practice structured oral presentations. Us
 
 ## Quick Start
 
-### 1. Start infrastructure (Postgres + Redis)
+### 1. Start infrastructure (Postgres)
 
 ```bash
 docker compose up -d
@@ -64,15 +64,15 @@ source .venv/bin/activate
 uvicorn main:app --reload --host 0.0.0.0 --port 8000
 ```
 
-Start the Celery worker (separate terminal):
+Start the background worker (separate terminal):
 
 ```bash
-sudo apt install celery
-
 cd backend
 source .venv/bin/activate
-celery -A core.celery_app worker --loglevel=info --concurrency=4
+python -m worker
 ```
+
+The worker polls Postgres for `answer_assessments` and `suggestion_reports` rows with `status=pending`.
 
 ### 3. Run backend tests
 
@@ -114,12 +114,18 @@ flutter test
 
 ---
 
+### 7. Run on Prod server
+```bash
+docker compose up -d
+cd ./backend && source .venv/bin/activate
+python -m worker & uvicorn main:app --host 0.0.0.0 --port 8000
+```
+
 ## Environment Variables (backend/.env)
 
 ```
 DATABASE_URL=postgresql+asyncpg://aethespeech:password@localhost:5432/aethespeech
 SYNC_DATABASE_URL=postgresql+psycopg2://aethespeech:password@localhost:5432/aethespeech
-REDIS_URL=redis://localhost:6379
 OPENROUTER_API_KEY=sk-or-...
 SECRET_KEY=change-me-in-production
 ALGORITHM=HS256
@@ -134,8 +140,8 @@ AUDIO_TEMP_DIR=/tmp/aethespeech_audio
 ### Flow 1 — User Interview
 Pick topic → 15 s prep per question → 90 s recording → repeat × 10 → wait for report
 
-### Flow 2 — Answer Assessment (Celery, runs per answer)
+### Flow 2 — Answer Assessment (worker, runs per answer)
 Audio → Audio LLM transcription → Text LLM XML labeling (with retry) → Text LLM rephrasing → save to DB
 
-### Flow 3 — Report Generation (Celery, runs after batch submit)
+### Flow 3 — Report Generation (worker, runs after batch submit)
 Collect all Flow 2 results → Text LLM suggestions → save report to DB

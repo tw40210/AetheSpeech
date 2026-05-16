@@ -17,7 +17,7 @@ async def save_audio(answer_id: str, data: bytes) -> str:
 
 
 def save_audio_sync(answer_id: str, data: bytes) -> str:
-    """Synchronous version for use in Celery tasks."""
+    """Synchronous version for use in the background worker."""
     audio_dir = Path(settings.AUDIO_TEMP_DIR)
     audio_dir.mkdir(parents=True, exist_ok=True)
     file_path = audio_dir / f"{answer_id}.m4a"
