@@ -50,6 +50,12 @@ interface InterviewContextValue {
   ) => Promise<void>;
   stopRecordingAndUpload: (question: Question) => Promise<UploadResult | null>;
   advanceQuestion: () => void;
+  clearError: () => void;
+  retryRecording: (
+    question: Question,
+    seconds: number,
+    onTimeUp: () => void,
+  ) => Promise<void>;
   reset: () => void;
 }
 
@@ -187,9 +193,16 @@ export function InterviewProvider({ children }: { children: ReactNode }) {
       clearTimer();
       setPhase(InterviewPhase.UPLOADING);
 
-      const audioFile = await audioService.stopRecording();
+      let audioFile;
+      try {
+        audioFile = await audioService.stopRecording();
+      } catch {
+        audioFile = null;
+      }
       if (!audioFile) {
-        setError('Recording failed — no audio was captured');
+        setError(
+          `Could not finalize the recording. Try again — keep answers under ${AppConstants.recordTimeSeconds} seconds.`,
+        );
         setPhase(InterviewPhase.IDLE);
         return null;
       }
@@ -219,6 +232,20 @@ export function InterviewProvider({ children }: { children: ReactNode }) {
     setPhase(InterviewPhase.IDLE);
   }, []);
 
+  const clearError = useCallback(() => {
+    setError(null);
+  }, []);
+
+  const retryRecording = useCallback(
+    async (question: Question, seconds: number, onTimeUp: () => void) => {
+      clearTimer();
+      audioService.cancel();
+      setError(null);
+      await startRecording(question, seconds, onTimeUp);
+    },
+    [clearTimer, startRecording],
+  );
+
   const currentQuestion =
     questions.length > 0 && currentIndex < questions.length
       ? questions[currentIndex]
@@ -247,6 +274,8 @@ export function InterviewProvider({ children }: { children: ReactNode }) {
         startRecording,
         stopRecordingAndUpload,
         advanceQuestion,
+        clearError,
+        retryRecording,
         reset,
       }}
     >

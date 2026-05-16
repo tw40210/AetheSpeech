@@ -110,6 +110,7 @@ class ApiClient {
     path: string,
     fields: Record<string, string>,
     audio: AudioFile,
+    timeoutMs = AppConstants.uploadTimeoutMs,
   ): Promise<T> {
     const formData = new FormData();
     Object.entries(fields).forEach(([k, v]) => formData.append(k, v));
@@ -117,12 +118,25 @@ class ApiClient {
     const ext = audio.mimeType.includes('ogg') ? 'ogg' : 'webm';
     formData.append('audio', audio.blob, `${audio.questionId}.${ext}`);
 
-    const res = await fetch(`${this.baseUrl}${path}`, {
-      method: 'POST',
-      headers: this.authHeader(),
-      body: formData,
-    });
-    return this.handleResponse<T>(res);
+    const controller = new AbortController();
+    const timeoutId = window.setTimeout(() => controller.abort(), timeoutMs);
+
+    try {
+      const res = await fetch(this.resolveUrl(path).toString(), {
+        method: 'POST',
+        headers: this.authHeader(),
+        body: formData,
+        signal: controller.signal,
+      });
+      return await this.handleResponse<T>(res);
+    } catch (e) {
+      if (e instanceof DOMException && e.name === 'AbortError') {
+        throw new ApiError('Upload timed out — try a shorter answer or check your connection', 0);
+      }
+      throw e;
+    } finally {
+      window.clearTimeout(timeoutId);
+    }
   }
 }
 

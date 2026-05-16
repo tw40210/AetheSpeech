@@ -11,7 +11,7 @@ class Settings(BaseSettings):
 
     # Interview configuration
     PREP_TIME_SECONDS: int = 15
-    RECORD_TIME_SECONDS: int = 90
+    RECORD_TIME_SECONDS: int = 180
     QUESTIONS_PER_SESSION: int = 10
 
     AUDIO_TEMP_DIR: str = "/tmp/aethespeech_audio"

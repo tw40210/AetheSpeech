@@ -38,7 +38,7 @@ def transcribe_audio(audio_path: str) -> str:
     audio_format = path.suffix.lower().lstrip(".") or "m4a"
     encoded_audio = base64.b64encode(audio_bytes).decode("ascii")
 
-    with httpx.Client(timeout=120) as client:
+    with httpx.Client(timeout=300) as client:
         response = client.post(
             f"{settings.OPENROUTER_BASE_URL}/audio/transcriptions",
             headers=_headers(),

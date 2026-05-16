@@ -1,5 +1,7 @@
 import MicIcon from '@mui/icons-material/Mic';
+import ReplayRoundedIcon from '@mui/icons-material/ReplayRounded';
 import StopCircleOutlinedIcon from '@mui/icons-material/StopCircleOutlined';
+import Alert from '@mui/material/Alert';
 import AppBar from '@mui/material/AppBar';
 import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
@@ -37,22 +39,30 @@ export default function RecordingPage() {
     startRecording,
     stopRecordingAndUpload,
     advanceQuestion,
+    error,
+    clearError,
+    retryRecording,
   } = useInterview();
 
-  const [done, setDone] = useState(false);
+  const [finishing, setFinishing] = useState(false);
   const [permError, setPermError] = useState(false);
   const startedRef = useRef(false);
+  const finishRef = useRef<() => void>(() => {});
 
   const questionNumber = currentIndex + 1;
   const totalQuestions = questions.length;
 
   const finishRecording = async () => {
-    if (done || phase === InterviewPhase.UPLOADING) return;
+    if (finishing || phase === InterviewPhase.UPLOADING) return;
     if (!currentQuestion) return;
-    setDone(true);
+    setFinishing(true);
+    clearError();
 
     const result = await stopRecordingAndUpload(currentQuestion);
-    if (!result) return;
+    if (!result) {
+      setFinishing(false);
+      return;
+    }
 
     if (isLastQuestion) {
       navigate('/interview/wait', {
@@ -65,6 +75,17 @@ export default function RecordingPage() {
     }
   };
 
+  finishRef.current = finishRecording;
+
+  const handleRetry = async () => {
+    if (!currentQuestion || finishing) return;
+    clearError();
+    setFinishing(false);
+    await retryRecording(currentQuestion, AppConstants.recordTimeSeconds, () => {
+      finishRef.current();
+    });
+  };
+
   useEffect(() => {
     if (startedRef.current) return;
     if (!currentQuestion) {
@@ -74,7 +95,7 @@ export default function RecordingPage() {
     startedRef.current = true;
 
     startRecording(currentQuestion, AppConstants.recordTimeSeconds, () => {
-      if (!done) finishRecording();
+      finishRef.current();
     }).catch(() => setPermError(true));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -130,10 +151,23 @@ export default function RecordingPage() {
           ) : null}
         </Box>
 
+        {error && (
+          <Alert severity="error" sx={{ mb: 2 }}>
+            {error}
+          </Alert>
+        )}
+
         {/* Status / timer */}
         <Box sx={{ textAlign: 'center', mb: 3 }}>
           {isUploading ? (
-            <Typography color="text.secondary">Uploading…</Typography>
+            <>
+              <Typography color="text.secondary" mb={1}>
+                Finalizing and uploading your answer…
+              </Typography>
+              <Typography variant="caption" color="text.secondary">
+                Long recordings can take up to a few minutes
+              </Typography>
+            </>
           ) : (
             <>
               <Typography color="text.secondary" mb={1}>
@@ -150,18 +184,30 @@ export default function RecordingPage() {
           )}
         </Box>
 
-        {/* Finish button */}
-        <Button
-          variant="contained"
-          size="large"
-          fullWidth
-          color="error"
-          startIcon={<StopCircleOutlinedIcon />}
-          disabled={isUploading || done}
-          onClick={finishRecording}
-        >
-          Finish Answer
-        </Button>
+        {error ? (
+          <Button
+            variant="contained"
+            size="large"
+            fullWidth
+            startIcon={<ReplayRoundedIcon />}
+            disabled={finishing || isUploading}
+            onClick={handleRetry}
+          >
+            Record again
+          </Button>
+        ) : (
+          <Button
+            variant="contained"
+            size="large"
+            fullWidth
+            color="error"
+            startIcon={<StopCircleOutlinedIcon />}
+            disabled={isUploading || finishing}
+            onClick={finishRecording}
+          >
+            Finish Answer
+          </Button>
+        )}
         <Box sx={{ height: 12 }} />
       </Box>
 

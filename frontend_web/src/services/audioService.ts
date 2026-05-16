@@ -10,11 +10,14 @@ export interface AudioFile {
   mimeType: string;
 }
 
+const STOP_TIMEOUT_MS = 45_000;
+
 class AudioService {
   private mediaRecorder: MediaRecorder | null = null;
   private chunks: BlobPart[] = [];
   private stream: MediaStream | null = null;
   private currentQuestionId: string | null = null;
+  private stopping = false;
 
   /** Returns true if the browser can access the microphone. */
   async hasPermission(): Promise<boolean> {
@@ -29,6 +32,7 @@ class AudioService {
 
   /** Start recording audio for a given question. */
   async startRecording(questionId: string): Promise<void> {
+    this.stopping = false;
     this.currentQuestionId = questionId;
     this.chunks = [];
 
@@ -58,36 +62,60 @@ class AudioService {
    */
   stopRecording(): Promise<AudioFile | null> {
     return new Promise((resolve) => {
-      if (!this.mediaRecorder || this.mediaRecorder.state === 'inactive') {
+      const mr = this.mediaRecorder;
+      if (!mr || mr.state === 'inactive' || this.stopping) {
         resolve(null);
         return;
       }
 
-      this.mediaRecorder.onstop = () => {
-        const mimeType = this.mediaRecorder?.mimeType ?? 'audio/webm';
-        const blob = new Blob(this.chunks, { type: mimeType });
+      this.stopping = true;
+      const questionId = this.currentQuestionId;
+
+      const timeout = window.setTimeout(() => {
+        this.stopping = false;
+        this.stream?.getTracks().forEach((t) => t.stop());
+        this.stream = null;
+        resolve(null);
+      }, STOP_TIMEOUT_MS);
+
+      mr.onstop = () => {
+        window.clearTimeout(timeout);
+        this.stopping = false;
+
+        const mimeType = mr.mimeType || 'audio/webm';
+        const chunks = this.chunks;
 
         this.stream?.getTracks().forEach((t) => t.stop());
         this.stream = null;
+        this.mediaRecorder = null;
 
-        if (blob.size === 0 || !this.currentQuestionId) {
-          resolve(null);
-        } else {
-          resolve({ blob, questionId: this.currentQuestionId, mimeType });
-        }
+        // Defer Blob assembly so the UI can paint "Uploading…" before a large merge.
+        window.setTimeout(() => {
+          const blob = new Blob(chunks, { type: mimeType });
+          if (blob.size === 0 || !questionId) {
+            resolve(null);
+          } else {
+            resolve({ blob, questionId, mimeType });
+          }
+        }, 0);
       };
 
-      this.mediaRecorder.stop();
+      if (mr.state === 'recording') {
+        mr.requestData();
+      }
+      mr.stop();
     });
   }
 
   /** Cancel an in-progress recording without resolving data. */
   cancel(): void {
+    this.stopping = false;
     if (this.mediaRecorder && this.mediaRecorder.state !== 'inactive') {
       this.mediaRecorder.stop();
     }
     this.stream?.getTracks().forEach((t) => t.stop());
     this.stream = null;
+    this.mediaRecorder = null;
     this.chunks = [];
   }
 }

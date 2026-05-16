@@ -6,6 +6,8 @@ export const AppConstants = {
   // Interview timing (must match backend config)
   prepTimeSeconds: 5,
   recordTimeSeconds: 180,
+  /** Max wait for POST /answers (large recordings). */
+  uploadTimeoutMs: 180_000,
   questionsPerSession: 3,
 
   // Report polling
