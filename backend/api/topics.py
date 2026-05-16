@@ -1,8 +1,10 @@
 import json
 import uuid
+from pathlib import Path
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File
+from fastapi.responses import FileResponse
 from sqlalchemy import select, func, delete
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -15,6 +17,20 @@ from models.user import User
 from schemas.topic_schema import TopicIn, TopicOut
 
 router = APIRouter(prefix="/topics", tags=["topics"])
+
+SAMPLE_SEED_PATH = Path(__file__).resolve().parent.parent / "sample_seed.json"
+
+
+@router.get("/sample")
+async def download_sample_topics():
+    """Return the example JSON users can edit and upload."""
+    if not SAMPLE_SEED_PATH.is_file():
+        raise HTTPException(status_code=404, detail="Sample file not found.")
+    return FileResponse(
+        SAMPLE_SEED_PATH,
+        media_type="application/json",
+        filename="sample_seed.json",
+    )
 
 
 @router.get("", response_model=list[TopicOut])

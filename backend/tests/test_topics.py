@@ -1,6 +1,8 @@
 """Tests for /topics and /questions endpoints."""
 
+import json
 import uuid
+from pathlib import Path
 
 import pytest
 
@@ -29,6 +31,19 @@ async def _seed_topic(db_session, name="Business Report"):
         )
     await db_session.commit()
     return topic
+
+
+@pytest.mark.asyncio
+async def test_download_sample_topics(client):
+    resp = await client.get("/topics/sample")
+    assert resp.status_code == 200
+    assert "application/json" in resp.headers["content-type"]
+    assert "sample_seed.json" in resp.headers.get("content-disposition", "")
+    data = resp.json()
+    on_disk = json.loads(
+        (Path(__file__).resolve().parent.parent / "sample_seed.json").read_text(encoding="utf-8")
+    )
+    assert data == on_disk
 
 
 @pytest.mark.asyncio

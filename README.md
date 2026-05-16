@@ -118,7 +118,7 @@ flutter test
 ```bash
 docker compose up -d
 cd ./backend && source .venv/bin/activate
-python -m worker & uvicorn main:app --host 0.0.0.0 --port 8000
+sudo .venv/bin/python3 -m worker & uvicorn main:app --host 0.0.0.0 --port 8000
 ```
 
 ## Environment Variables (backend/.env)

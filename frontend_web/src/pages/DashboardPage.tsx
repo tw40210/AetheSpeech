@@ -6,6 +6,7 @@ import MicExternalOnRoundedIcon from '@mui/icons-material/MicExternalOnRounded';
 import PersonOutlineRoundedIcon from '@mui/icons-material/PersonOutlineRounded';
 import PlayArrowRoundedIcon from '@mui/icons-material/PlayArrowRounded';
 import TopicOutlinedIcon from '@mui/icons-material/TopicOutlined';
+import DownloadRoundedIcon from '@mui/icons-material/DownloadRounded';
 import UploadFileRoundedIcon from '@mui/icons-material/UploadFileRounded';
 import Alert from '@mui/material/Alert';
 import AppBar from '@mui/material/AppBar';
@@ -369,6 +370,11 @@ interface UploadTopicDialogProps {
   onUploaded: () => void;
 }
 
+const sampleTopicDownloadUrl = new URL(
+  '/topics/sample',
+  AppConstants.baseUrl || window.location.origin,
+).href;
+
 function UploadTopicDialog({ open, remainingSlots, onClose, onUploaded }: UploadTopicDialogProps) {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
@@ -446,6 +452,19 @@ function UploadTopicDialog({ open, remainingSlots, onClose, onUploaded }: Upload
           <li>Label key: max 20 chars · label name: max 100 chars · up to 20 labels</li>
           <li>Question text &amp; context: max 500 characters each · up to 50 questions</li>
         </Box>
+
+        <Button
+          variant="outlined"
+          size="small"
+          component="a"
+          href={sampleTopicDownloadUrl}
+          download="sample_seed.json"
+          startIcon={<DownloadRoundedIcon />}
+          fullWidth
+          sx={{ mb: 1 }}
+        >
+          Download sample file
+        </Button>
 
         <Button
           variant="outlined"
