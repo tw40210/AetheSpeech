@@ -1,6 +1,7 @@
 export const AppConstants = {
   // Update to your machine's IP when testing from a phone or other device
-  baseUrl: 'http://localhost:8000',
+  // baseUrl: 'http://localhost:8000',
+  baseUrl: '',
 
   // Interview timing (must match backend config)
   prepTimeSeconds: 5,

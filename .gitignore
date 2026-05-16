@@ -8,7 +8,6 @@ venv/
 .venv/
 env/
 *.egg-info/
-dist/
 build/
 .pytest_cache/
 .mypy_cache/
@@ -31,7 +30,6 @@ backend/seed_json/
 
 # ── React / Node (frontend_web) ──────────────────────────────
 frontend_web/node_modules/
-frontend_web/dist/
 frontend_web/.vite/
 frontend_web/*.local
 

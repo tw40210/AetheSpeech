@@ -30,6 +30,11 @@ class ApiClient {
     return this.token ? { Authorization: `Bearer ${this.token}` } : {};
   }
 
+  /** Absolute URL for a path; empty baseUrl → same origin (FastAPI-hosted SPA). */
+  private resolveUrl(path: string): URL {
+    return new URL(path, this.baseUrl || window.location.origin);
+  }
+
   private async handleResponse<T>(res: Response): Promise<T> {
     if (res.ok) {
       const text = await res.text();
@@ -46,7 +51,7 @@ class ApiClient {
   }
 
   async get<T = unknown>(path: string, params: Record<string, string> = {}): Promise<T> {
-    const url = new URL(`${this.baseUrl}${path}`);
+    const url = this.resolveUrl(path);
     Object.entries(params).forEach(([k, v]) => url.searchParams.set(k, v));
     const res = await fetch(url.toString(), {
       method: 'GET',
