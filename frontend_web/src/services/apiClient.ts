@@ -36,16 +36,27 @@ class ApiClient {
   }
 
   private async handleResponse<T>(res: Response): Promise<T> {
+    const text = await res.text();
     if (res.ok) {
-      const text = await res.text();
-      return (text ? JSON.parse(text) : null) as T;
+      if (!text) return null as T;
+      try {
+        return JSON.parse(text) as T;
+      } catch {
+        throw new ApiError(
+          'Server returned HTML instead of JSON — is the API running and is baseUrl configured correctly?',
+          res.status,
+        );
+      }
     }
     let message = res.statusText;
     try {
-      const data = await res.json();
-      message = (data as { detail?: string }).detail ?? JSON.stringify(data);
+      const data = text ? JSON.parse(text) : null;
+      message = (data as { detail?: string })?.detail ?? JSON.stringify(data);
     } catch {
-      // keep statusText
+      if (text.trimStart().startsWith('<!DOCTYPE') || text.trimStart().startsWith('<html')) {
+        message =
+          'Server returned HTML instead of JSON — is the API running and is baseUrl configured correctly?';
+      }
     }
     throw new ApiError(message, res.status);
   }
@@ -64,7 +75,7 @@ class ApiClient {
   }
 
   async post<T = unknown>(path: string, body: unknown): Promise<T> {
-    const res = await fetch(`${this.baseUrl}${path}`, {
+    const res = await fetch(this.resolveUrl(path).toString(), {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -76,7 +87,7 @@ class ApiClient {
   }
 
   async delete<T = unknown>(path: string): Promise<T> {
-    const res = await fetch(`${this.baseUrl}${path}`, {
+    const res = await fetch(this.resolveUrl(path).toString(), {
       method: 'DELETE',
       headers: {
         'Content-Type': 'application/json',
@@ -92,7 +103,7 @@ class ApiClient {
   async postFile<T = unknown>(path: string, file: File, fieldName = 'file'): Promise<T> {
     const formData = new FormData();
     formData.append(fieldName, file);
-    const res = await fetch(`${this.baseUrl}${path}`, {
+    const res = await fetch(this.resolveUrl(path).toString(), {
       method: 'POST',
       headers: this.authHeader(),
       body: formData,

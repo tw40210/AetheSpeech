@@ -53,9 +53,10 @@ app.include_router(questions.router)
 app.include_router(answers.router)
 app.include_router(reports.router)
 
-_mount_frontend()
-
 
 @app.get("/health")
 async def health():
     return {"status": "ok"}
+
+
+_mount_frontend()

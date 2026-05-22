@@ -92,7 +92,7 @@ npm run dev
 
 The web app runs at **http://localhost:3000**.
 
-Update `src/core/constants.js` → `baseUrl` if the backend runs on a different host or port.
+Update `src/core/constants.ts` → `baseUrl` if the backend runs on a different host or port. When using `npm run dev`, API requests are proxied to port 8000 automatically.
 
 ### 5. Set up and run Flutter frontend
 
