@@ -2,17 +2,16 @@ import HelpOutlineIcon from '@mui/icons-material/HelpOutline';
 import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined';
 import PauseCircleOutlineIcon from '@mui/icons-material/PauseCircleOutline';
 import PlayCircleOutlineIcon from '@mui/icons-material/PlayCircleOutline';
-import AppBar from '@mui/material/AppBar';
 import Box from '@mui/material/Box';
 import Divider from '@mui/material/Divider';
 import IconButton from '@mui/material/IconButton';
 import LinearProgress from '@mui/material/LinearProgress';
-import Toolbar from '@mui/material/Toolbar';
 import Tooltip from '@mui/material/Tooltip';
 import Typography from '@mui/material/Typography';
 import { useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import CountdownRing from '../components/CountdownRing';
+import InterviewStageAppBar from '../components/InterviewStageAppBar';
 import { AppConstants } from '../core/constants';
 import { useInterview } from '../context/InterviewContext';
 
@@ -51,13 +50,10 @@ export default function PreparationPage() {
 
   return (
     <Box sx={{ minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
-      <AppBar position="static" color="inherit">
-        <Toolbar sx={{ justifyContent: 'center' }}>
-          <Typography variant="h6" fontWeight="bold">
-            Question {questionNumber} of {totalQuestions}
-          </Typography>
-        </Toolbar>
-      </AppBar>
+      <InterviewStageAppBar
+        questionNumber={questionNumber}
+        totalQuestions={totalQuestions}
+      />
 
       <Box
         sx={{

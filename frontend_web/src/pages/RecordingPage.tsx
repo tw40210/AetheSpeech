@@ -2,7 +2,6 @@ import MicIcon from '@mui/icons-material/Mic';
 import ReplayRoundedIcon from '@mui/icons-material/ReplayRounded';
 import StopCircleOutlinedIcon from '@mui/icons-material/StopCircleOutlined';
 import Alert from '@mui/material/Alert';
-import AppBar from '@mui/material/AppBar';
 import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
 import Card from '@mui/material/Card';
@@ -13,11 +12,11 @@ import DialogActions from '@mui/material/DialogActions';
 import DialogContent from '@mui/material/DialogContent';
 import DialogTitle from '@mui/material/DialogTitle';
 import LinearProgress from '@mui/material/LinearProgress';
-import Toolbar from '@mui/material/Toolbar';
 import Typography from '@mui/material/Typography';
 import { keyframes } from '@mui/system';
 import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import InterviewStageAppBar from '../components/InterviewStageAppBar';
 import { AppConstants } from '../core/constants';
 import { InterviewPhase, useInterview } from '../context/InterviewContext';
 
@@ -108,13 +107,11 @@ export default function RecordingPage() {
 
   return (
     <Box sx={{ minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
-      <AppBar position="static" color="inherit">
-        <Toolbar sx={{ justifyContent: 'center' }}>
-          <Typography variant="h6" fontWeight="bold">
-            Question {questionNumber} of {totalQuestions}
-          </Typography>
-        </Toolbar>
-      </AppBar>
+      <InterviewStageAppBar
+        questionNumber={questionNumber}
+        totalQuestions={totalQuestions}
+        homeDisabled={isUploading}
+      />
 
       <Box
         sx={{
