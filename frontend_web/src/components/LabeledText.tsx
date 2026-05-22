@@ -1,7 +1,7 @@
 import Box from '@mui/material/Box';
 import Typography from '@mui/material/Typography';
 import type { TopicLabel } from '../core/types';
-import { getLabelColor } from '../core/theme';
+import { getLabelColorAtIndex } from '../core/theme';
 
 interface Segment {
   tag: string;
@@ -17,10 +17,11 @@ interface LabeledTextProps {
  * Parses labeled XML text (e.g. <WWAD>…</WWAD><WWHD>…</WWHD>) and renders
  * each segment with a colored left-border, a chip-style label, and body text.
  *
+ * Colors are assigned by order of first appearance — no predefined label set required.
  * Mirrors Flutter's LabeledTextWidget.
  */
 export default function LabeledText({ xmlText, labels = [] }: LabeledTextProps) {
-  const segments = parseSegments(xmlText, labels);
+  const segments = parseSegments(xmlText);
 
   if (!segments.length) {
     return (
@@ -30,10 +31,14 @@ export default function LabeledText({ xmlText, labels = [] }: LabeledTextProps) 
     );
   }
 
+  const colorIndices = tagColorIndices(segments);
+
   return (
     <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}>
       {segments.map((seg, i) => {
-        const color = getLabelColor(seg.tag);
+        const color = seg.tag
+          ? getLabelColorAtIndex(colorIndices.get(seg.tag)!)
+          : '#616161';
         const labelName = labels.find((l) => l.key === seg.tag)?.name ?? seg.tag;
 
         return (
@@ -73,8 +78,20 @@ export default function LabeledText({ xmlText, labels = [] }: LabeledTextProps) 
   );
 }
 
+/** Assign palette colors by order of first appearance in parsed segments. */
+function tagColorIndices(segments: Segment[]): Map<string, number> {
+  const indices = new Map<string, number>();
+  let next = 0;
+  for (const seg of segments) {
+    if (seg.tag && !indices.has(seg.tag)) {
+      indices.set(seg.tag, next++);
+    }
+  }
+  return indices;
+}
+
 /** Parse <TAG>content</TAG> segments from XML-ish text. */
-function parseSegments(xmlText: string, labels: TopicLabel[]): Segment[] {
+function parseSegments(xmlText: string): Segment[] {
   if (!xmlText) return [];
 
   const pattern = /<(\w+)>([\s\S]*?)<\/\1>/g;
@@ -84,9 +101,6 @@ function parseSegments(xmlText: string, labels: TopicLabel[]): Segment[] {
   while ((match = pattern.exec(xmlText)) !== null) {
     const tag = match[1];
     const content = match[2].trim();
-    // Keep all XML segments, even when tag is not part of local fallback labels.
-    // Backend topic labels can vary by dataset (e.g. EXECUTION), and filtering
-    // unknown tags here hides real transcript content in report UI.
     if (content) {
       segments.push({ tag, text: content });
     }

@@ -1,5 +1,4 @@
 import { createTheme } from '@mui/material/styles';
-import type { TopicLabel } from './types';
 
 const seedColor = '#5C6BC0'; // Indigo — matches Flutter seed
 
@@ -69,43 +68,20 @@ export const appTheme = createTheme({
   },
 });
 
-// Label tag colors for XML-labeled transcript rendering (mirrors Flutter AppTheme.labelColors)
-export const labelColors: Record<string, string> = {
-  // Business Report
-  WWAD: '#1976D2',
-  WWSDI: '#388E3C',
-  WWHD: '#F57C00',
-  NS: '#7B1FA2',
-  // Product Pitch
-  PROBLEM: '#D32F2F',
-  SOLUTION: '#0288D1',
-  VALUE: '#00796B',
-  PLAN: '#C2185B',
-  // Self Introduction
-  BACKGROUND: '#5D4037',
-  SKILLS: '#00897B',
-  ACHIEVEMENT: '#E64A19',
-  GOAL: '#1565C0',
-};
-
-export function getLabelColor(key: string): string {
-  return labelColors[key] ?? '#616161';
-}
-
-// Fallback label definitions used by the assessment tab renderer
-export const fallbackLabels: TopicLabel[] = [
-  { key: 'WWAD', name: 'What we are doing' },
-  { key: 'WWSDI', name: 'Why we should do it' },
-  { key: 'WWHD', name: 'What we have done' },
-  { key: 'NS', name: 'Next step' },
-  { key: 'PROBLEM', name: 'Problem statement' },
-  { key: 'SOLUTION', name: 'Proposed solution' },
-  { key: 'VALUE', name: 'Value proposition' },
-  { key: 'PLAN', name: 'Execution plan' },
-  { key: 'BACKGROUND', name: 'Professional background' },
-  { key: 'SKILLS', name: 'Key skills' },
-  { key: 'ACHIEVEMENT', name: 'Notable achievements' },
-  { key: 'GOAL', name: 'Future goals' },
-  // Default fallback injected by backend for unlabeled or off-topic speech
-  { key: 'UNCLEAR', name: 'Unclear or incomplete' },
+// Palette for XML-labeled transcript rendering; assigned by label order (mirrors Flutter AppTheme.labelPalette)
+export const labelPalette: string[] = [
+  '#1976D2', // Blue
+  '#388E3C', // Green
+  '#F57C00', // Orange
+  '#7B1FA2', // Purple
+  '#D32F2F', // Red
+  '#0288D1', // Light blue
+  '#00796B', // Teal
+  '#C2185B', // Pink
+  '#5D4037', // Brown
+  '#E64A19', // Deep orange
 ];
+
+export function getLabelColorAtIndex(index: number): string {
+  return labelPalette[index % labelPalette.length];
+}

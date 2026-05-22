@@ -121,6 +121,13 @@ cd ./backend && source .venv/bin/activate
 sudo .venv/bin/python3 -m worker & uvicorn main:app --host 0.0.0.0 --port 8000
 ```
 
+### 8. Develop pull
+```
+sudo git stash
+sudo git pull origin
+sudo git stash pop
+```
+
 ## Environment Variables (backend/.env)
 
 ```

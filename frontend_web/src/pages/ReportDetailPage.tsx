@@ -11,7 +11,6 @@ import Typography from '@mui/material/Typography';
 import { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import LabeledText from '../components/LabeledText';
-import { fallbackLabels } from '../core/theme';
 import type { AnswerAssessment, Report } from '../core/types';
 import { useInterview } from '../context/InterviewContext';
 import { ReportFetchState, useReport } from '../context/ReportContext';
@@ -195,5 +194,5 @@ function LabeledPane({ xmlText }: { xmlText?: string }) {
       </Typography>
     );
   }
-  return <LabeledText xmlText={xmlText} labels={fallbackLabels} />;
+  return <LabeledText xmlText={xmlText} />;
 }
