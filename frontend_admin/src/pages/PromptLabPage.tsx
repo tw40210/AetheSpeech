@@ -1,5 +1,6 @@
 import PlayArrowIcon from '@mui/icons-material/PlayArrow';
 import SkipNextIcon from '@mui/icons-material/SkipNext';
+import VisibilityIcon from '@mui/icons-material/Visibility';
 import {
   Alert,
   Box,
@@ -15,6 +16,7 @@ import {
 } from '@mui/material';
 import { useCallback, useEffect, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
+import QueryPromptDialog from '../components/QueryPromptDialog';
 import StepCard from '../components/StepCard';
 import WorkflowStepper from '../components/WorkflowStepper';
 import PromptEditor from '../components/PromptEditor';
@@ -49,12 +51,26 @@ function payloadToEditable(payload: ChatPayload | null): EditableStep | null {
   return { systemPrompt: sys, userContent: usr, model: payload.model, temperature: payload.temperature };
 }
 
+function editableToPayload(editable: EditableStep): ChatPayload {
+  return {
+    model: editable.model,
+    temperature: editable.temperature,
+    messages: [
+      { role: 'system', content: editable.systemPrompt },
+      { role: 'user', content: editable.userContent },
+    ],
+  };
+}
+
 function editableToOverride(editable: EditableStep): StepOverride {
-  const messages: ChatMessage[] = [
-    { role: 'system', content: editable.systemPrompt },
-    { role: 'user', content: editable.userContent },
-  ];
-  return { model: editable.model, temperature: editable.temperature, messages };
+  const payload = editableToPayload(editable);
+  return { model: payload.model, temperature: payload.temperature, messages: payload.messages };
+}
+
+interface PromptPreviewState {
+  title: string;
+  payload: ChatPayload | null;
+  note?: string;
 }
 
 // ── Small shared UI pieces ───────────────────────────────────────────────────
@@ -111,6 +127,7 @@ function StepControls({
   onReset,
   onRunSingle,
   onRunFromHere,
+  onViewPrompt,
   singleKey,
   fromHereKey,
   running,
@@ -121,6 +138,7 @@ function StepControls({
   onReset: () => void;
   onRunSingle: () => void;
   onRunFromHere?: () => void;
+  onViewPrompt: () => void;
   singleKey: string;
   fromHereKey?: string;
   running: Set<string>;
@@ -159,6 +177,11 @@ function StepControls({
           />
         </Box>
         <Box sx={{ ml: 'auto', display: 'flex', gap: 1 }}>
+          <Tooltip title="Preview the exact LLM request payload for this step">
+            <Button size="small" variant="text" startIcon={<VisibilityIcon />} onClick={onViewPrompt}>
+              View prompt
+            </Button>
+          </Tooltip>
           <Tooltip title="Run only this step">
             <span>
               <Button
@@ -221,6 +244,7 @@ export default function PromptLabPage() {
   const [answerResults, setAnswerResults] = useState<Partial<Record<AnswerStepId, StepResult>>>({});
   const [reportResults, setReportResults] = useState<Partial<Record<ReportStepId, StepResult>>>({});
   const [running, setRunning] = useState<Set<string>>(new Set());
+  const [promptPreview, setPromptPreview] = useState<PromptPreviewState | null>(null);
 
   useEffect(() => {
     adminApiClient.get<WorkflowDefaults>('/admin/workflows/defaults').then(setDefaults).catch(() => {});
@@ -277,8 +301,14 @@ export default function PromptLabPage() {
     setRunning((s) => new Set(s).add(key));
 
     const overrides: Record<string, StepOverride> = {};
-    if (steps.includes('label') && labelEdit) overrides.label = editableToOverride(labelEdit);
-    if (steps.includes('rephrase') && rephraseEdit) overrides.rephrase = editableToOverride(rephraseEdit);
+    if (steps.includes('label')) {
+      const override = buildLabelOverride();
+      if (override) overrides.label = override;
+    }
+    if (steps.includes('rephrase')) {
+      const override = buildRephraseOverride();
+      if (override) overrides.rephrase = override;
+    }
 
     try {
       const data = await adminApiClient.post<{ steps: Record<AnswerStepId, StepResult> }>(
@@ -305,8 +335,9 @@ export default function PromptLabPage() {
     setRunning((s) => new Set(s).add(key));
 
     const overrides: Record<string, StepOverride> = {};
-    if (steps.includes('generate_suggestions') && suggestionsEdit) {
-      overrides.generate_suggestions = editableToOverride(suggestionsEdit);
+    if (steps.includes('generate_suggestions')) {
+      const override = buildSuggestionsOverride();
+      if (override) overrides.generate_suggestions = override;
     }
 
     try {
@@ -334,6 +365,63 @@ export default function PromptLabPage() {
     setLoadError(null);
     setAnswerResults({});
     setReportResults({});
+    setPromptPreview(null);
+  };
+
+  const buildLabelOverride = (): StepOverride | null => {
+    if (!labelEdit) return null;
+    return editableToOverride({
+      ...labelEdit,
+      userContent: transcriptOverride || labelEdit.userContent,
+    });
+  };
+
+  const buildRephraseOverride = (): StepOverride | null => {
+    if (!rephraseEdit || !answerWorkflow) return null;
+    const transcript = transcriptOverride || rephraseEdit.userContent;
+    const questionText = answerWorkflow.question?.text ?? '';
+    return editableToOverride({
+      ...rephraseEdit,
+      userContent: `Question: ${questionText}\n\nOriginal answer:\n${transcript}`,
+    });
+  };
+
+  const buildSuggestionsOverride = (): StepOverride | null => {
+    if (!suggestionsEdit) return null;
+    return editableToOverride({
+      ...suggestionsEdit,
+      userContent: summaryEdit || suggestionsEdit.userContent,
+    });
+  };
+
+  const buildLabelPayloadPreview = (): ChatPayload | null => {
+    const override = buildLabelOverride();
+    if (!override?.messages) return null;
+    return {
+      model: override.model ?? labelEdit!.model,
+      temperature: override.temperature ?? labelEdit!.temperature,
+      messages: override.messages,
+    };
+  };
+
+  const buildRephrasePayloadPreview = (): ChatPayload | null => {
+    const override = buildRephraseOverride();
+    if (!override?.messages) return null;
+    return {
+      model: override.model ?? rephraseEdit!.model,
+      temperature: override.temperature ?? rephraseEdit!.temperature,
+      messages: override.messages,
+    };
+  };
+
+  const buildSuggestionsPayloadPreview = (): ChatPayload | null => {
+    const override = buildSuggestionsOverride();
+    if (!override?.messages) return null;
+    return {
+      model: override.model ?? suggestionsEdit!.model,
+      temperature: override.temperature ?? suggestionsEdit!.temperature,
+      messages: override.messages,
+    };
   };
 
   // ── Render ────────────────────────────────────────────────────────────────
@@ -395,6 +483,22 @@ export default function PromptLabPage() {
                 onChange={setTranscriptOverride}
                 minRows={4}
               />
+              <Box sx={{ display: 'flex', justifyContent: 'flex-end', mt: 1.5 }}>
+                <Tooltip title="This step does not call an LLM">
+                  <Button
+                    size="small"
+                    variant="text"
+                    startIcon={<VisibilityIcon />}
+                    onClick={() => setPromptPreview({
+                      title: 'Step 1: Transcribe — LLM prompt',
+                      payload: null,
+                      note: 'This step does not send a prompt to an LLM. Audio is transcribed by the background worker. The transcript above is used as the user message for the Label and Rephrase steps.',
+                    })}
+                  >
+                    View prompt
+                  </Button>
+                </Tooltip>
+              </Box>
             </StepCard>
 
             {/* Step 2: Label */}
@@ -412,6 +516,10 @@ export default function PromptLabPage() {
                   onReset={() => setLabelEdit(payloadToEditable(answerWorkflow.default_payloads.label))}
                   onRunSingle={() => runAnswerSteps(['label'])}
                   onRunFromHere={() => runAnswerSteps(['label', 'rephrase'])}
+                  onViewPrompt={() => setPromptPreview({
+                    title: 'Step 2: Label — LLM prompt',
+                    payload: buildLabelPayloadPreview(),
+                  })}
                   singleKey="label"
                   fromHereKey="label,rephrase"
                   running={running}
@@ -438,6 +546,10 @@ export default function PromptLabPage() {
                   onChange={setRephraseEdit}
                   onReset={() => setRephraseEdit(payloadToEditable(answerWorkflow.default_payloads.rephrase))}
                   onRunSingle={() => runAnswerSteps(['rephrase'])}
+                  onViewPrompt={() => setPromptPreview({
+                    title: 'Step 3: Rephrase — LLM prompt',
+                    payload: buildRephrasePayloadPreview(),
+                  })}
                   singleKey="rephrase"
                   fromHereKey="label,rephrase"
                   running={running}
@@ -484,6 +596,20 @@ export default function PromptLabPage() {
                 minRows={10}
               />
               <Box sx={{ display: 'flex', justifyContent: 'flex-end', mt: 1.5, gap: 1 }}>
+                <Tooltip title="Preview the text passed as the user message to Generate Suggestions">
+                  <Button
+                    size="small"
+                    variant="text"
+                    startIcon={<VisibilityIcon />}
+                    onClick={() => setPromptPreview({
+                      title: 'Step 1: Build Assessment Summary — downstream input',
+                      payload: buildSuggestionsPayloadPreview(),
+                      note: 'This step does not call an LLM directly. The payload below shows the Generate Suggestions request that would use the assembled summary as the user message.',
+                    })}
+                  >
+                    View prompt
+                  </Button>
+                </Tooltip>
                 <Tooltip title="Re-assemble from DB data (overwrites edits)">
                   <span>
                     <Button
@@ -528,6 +654,10 @@ export default function PromptLabPage() {
                   onChange={setSuggestionsEdit}
                   onReset={resetReportStep}
                   onRunSingle={() => runReportSteps(['generate_suggestions'])}
+                  onViewPrompt={() => setPromptPreview({
+                    title: 'Step 2: Generate Suggestions — LLM prompt',
+                    payload: buildSuggestionsPayloadPreview(),
+                  })}
                   singleKey="generate_suggestions"
                   fromHereKey="build_summary,generate_suggestions"
                   running={running}
@@ -554,6 +684,14 @@ export default function PromptLabPage() {
           <Typography>Enter a Report ID above and click Load.</Typography>
         </Box>
       )}
+
+      <QueryPromptDialog
+        open={promptPreview !== null}
+        onClose={() => setPromptPreview(null)}
+        title={promptPreview?.title ?? ''}
+        payload={promptPreview?.payload}
+        note={promptPreview?.note}
+      />
     </Box>
   );
 
