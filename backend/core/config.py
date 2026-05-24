@@ -28,6 +28,9 @@ class Settings(BaseSettings):
     # User-uploaded topics
     MAX_USER_TOPICS: int = 10
 
+    # Admin dashboard
+    ADMIN_API_KEY: str = ""
+
     class Config:
         env_file = ".env"
         extra = "ignore"

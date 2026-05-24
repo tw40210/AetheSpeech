@@ -6,6 +6,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 
 from api import auth, topics, questions, answers, reports
+from api.admin.router import router as admin_router
 from core.config import settings
 from core.database import async_engine, Base
 
@@ -52,6 +53,7 @@ app.include_router(topics.router)
 app.include_router(questions.router)
 app.include_router(answers.router)
 app.include_router(reports.router)
+app.include_router(admin_router)
 
 
 @app.get("/health")

@@ -8,6 +8,7 @@ cd "$ROOT"
 PIDS=()
 NO_DOCKER=false
 STOP_DOCKER=false
+WITH_ADMIN=false
 
 usage() {
   cat <<'EOF'
@@ -18,6 +19,7 @@ Starts docker compose (Postgres), then uvicorn, the Postgres worker, and the web
 Options:
   --no-docker       Skip docker compose (infra already running)
   --down-on-exit    Run "docker compose down" when the script exits
+  --admin           Also start the admin dashboard (frontend_admin) on port 3001
   -h, --help        Show this help
 EOF
 }
@@ -26,6 +28,7 @@ while [[ $# -gt 0 ]]; do
   case "$1" in
     --no-docker) NO_DOCKER=true; shift ;;
     --down-on-exit) STOP_DOCKER=true; shift ;;
+    --admin) WITH_ADMIN=true; shift ;;
     -h|--help) usage; exit 0 ;;
     *) echo "Unknown option: $1" >&2; usage >&2; exit 1 ;;
   esac
@@ -44,6 +47,10 @@ fi
 
 if [[ ! -d "$ROOT/frontend_web/node_modules" ]]; then
   echo "Warning: frontend_web/node_modules missing — run: cd frontend_web && npm install" >&2
+fi
+
+if $WITH_ADMIN && [[ ! -d "$ROOT/frontend_admin/node_modules" ]]; then
+  echo "Warning: frontend_admin/node_modules missing — run: cd frontend_admin && npm install" >&2
 fi
 
 cleanup() {
@@ -76,11 +83,12 @@ start_service() {
 }
 
 start_frontend() {
+  local tag=$1 dir=$2
   setsid bash -c '
     cd "$1" || exit 1
-    exec > >(sed -u "s/^/[web] /") 2>&1
+    exec > >(sed -u "s/^/['"$tag"'] /") 2>&1
     exec npm run dev
-  ' _ "$ROOT/frontend_web" &
+  ' _ "$dir" &
   PIDS+=("$!")
 }
 
@@ -105,12 +113,20 @@ echo "Starting background worker (python -m worker)..."
 start_service worker "$ROOT/backend" python -m worker
 
 echo "Starting web frontend (Vite) on http://localhost:3000 ..."
-start_frontend
+start_frontend web "$ROOT/frontend_web"
+
+if $WITH_ADMIN; then
+  echo "Starting admin dashboard (Vite) on http://localhost:3001 ..."
+  start_frontend admin "$ROOT/frontend_admin"
+fi
 
 echo
 echo "Dev stack running. Press Ctrl+C to stop app processes."
 echo "  API:      http://localhost:8000"
 echo "  Web UI:   http://localhost:3000"
+if $WITH_ADMIN; then
+  echo "  Admin UI: http://localhost:3001"
+fi
 if $STOP_DOCKER; then
   echo "  Docker will be stopped on exit (--down-on-exit)."
 else

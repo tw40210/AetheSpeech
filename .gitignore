@@ -33,6 +33,11 @@ frontend_web/node_modules/
 frontend_web/.vite/
 frontend_web/*.local
 
+# ── React / Node (frontend_admin) ──────────────────────────────
+frontend_admin/node_modules/
+frontend_admin/dist/
+frontend_admin/*.local
+
 # ── Flutter (frontend) ───────────────────────────────────────
 frontend/.dart_tool/
 frontend/.flutter-plugins
