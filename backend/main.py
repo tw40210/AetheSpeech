@@ -4,6 +4,7 @@ from pathlib import Path
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
+from fastapi.staticfiles import StaticFiles
 
 from api import auth, topics, questions, answers, reports
 from api.admin.router import router as admin_router
@@ -11,6 +12,7 @@ from core.config import settings
 from core.database import async_engine, Base
 
 FRONTEND_DIST = Path(__file__).resolve().parent.parent / "frontend_web" / "dist"
+ADMIN_DIST = Path(__file__).resolve().parent.parent / "frontend_admin" / "dist"
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -22,6 +24,16 @@ async def lifespan(app: FastAPI):
 
     Path(settings.AUDIO_TEMP_DIR).mkdir(parents=True, exist_ok=True)
     yield
+
+def _mount_admin_frontend() -> None:
+    if not ADMIN_DIST.is_dir():
+        return
+    app.mount(
+        "/admin-ui",
+        StaticFiles(directory=str(ADMIN_DIST), html=True),
+        name="admin-ui",
+    )
+
 
 def _mount_frontend() -> None:
     if not FRONTEND_DIST.is_dir():
@@ -61,4 +73,5 @@ async def health():
     return {"status": "ok"}
 
 
+_mount_admin_frontend()
 _mount_frontend()

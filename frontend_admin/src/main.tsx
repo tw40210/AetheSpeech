@@ -9,7 +9,7 @@ ReactDOM.createRoot(document.getElementById('root') as HTMLElement).render(
   <React.StrictMode>
     <ThemeProvider theme={adminTheme}>
       <CssBaseline />
-      <BrowserRouter>
+      <BrowserRouter basename="/admin-ui">
         <App />
       </BrowserRouter>
     </ThemeProvider>

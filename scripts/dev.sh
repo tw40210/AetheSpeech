@@ -125,7 +125,7 @@ echo "Dev stack running. Press Ctrl+C to stop app processes."
 echo "  API:      http://localhost:8000"
 echo "  Web UI:   http://localhost:3000"
 if $WITH_ADMIN; then
-  echo "  Admin UI: http://localhost:3001"
+  echo "  Admin UI: http://localhost:3001/admin-ui/"
 fi
 if $STOP_DOCKER; then
   echo "  Docker will be stopped on exit (--down-on-exit)."
