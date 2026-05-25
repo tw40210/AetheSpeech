@@ -30,10 +30,27 @@ export interface AnswerAssessment {
   created_at: string;
 }
 
+export interface QuestionScores {
+  structure: number;
+  native: number;
+  wording: number;
+}
+
+export interface QuestionFeedback {
+  question_index: number;
+  positive_points: string[];
+  need_improvement_points: string[];
+  scores: QuestionScores;
+}
+
+export interface StructuredSuggestions {
+  questions: QuestionFeedback[];
+}
+
 export interface Report {
   id: string;
   status: 'pending' | 'done' | 'failed';
-  suggestions?: string;
+  suggestions?: StructuredSuggestions | null;
   assessments: AnswerAssessment[];
   created_at: string;
 }
@@ -41,7 +58,7 @@ export interface Report {
 export interface ReportSummary {
   id: string;
   status: 'pending' | 'done' | 'failed';
-  suggestions?: string;
+  suggestions?: StructuredSuggestions | null;
   answer_count: number;
   created_at: string;
 }

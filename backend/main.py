@@ -28,11 +28,25 @@ async def lifespan(app: FastAPI):
 def _mount_admin_frontend() -> None:
     if not ADMIN_DIST.is_dir():
         return
-    app.mount(
-        "/admin-ui",
-        StaticFiles(directory=str(ADMIN_DIST), html=True),
-        name="admin-ui",
-    )
+
+    index_path = ADMIN_DIST / "index.html"
+    assets_dir = ADMIN_DIST / "assets"
+    if assets_dir.is_dir():
+        app.mount(
+            "/admin-ui/assets",
+            StaticFiles(directory=str(assets_dir)),
+            name="admin-ui-assets",
+        )
+
+    @app.get("/admin-ui", include_in_schema=False)
+    @app.get("/admin-ui/", include_in_schema=False)
+    @app.get("/admin-ui/{full_path:path}", include_in_schema=False)
+    async def serve_admin_spa(full_path: str = ""):
+        if full_path:
+            candidate = ADMIN_DIST / full_path
+            if candidate.is_file():
+                return FileResponse(candidate)
+        return FileResponse(index_path)
 
 
 def _mount_frontend() -> None:

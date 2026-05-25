@@ -72,7 +72,7 @@ export interface ReportWorkflow {
     id: string;
     status: string;
     answer_ids: string[];
-    suggestions: string | null;
+    suggestions: Record<string, unknown> | null;
     error_message: string | null;
     created_at: string;
   };
@@ -90,7 +90,7 @@ export interface ReportWorkflow {
   };
   current_outputs: {
     build_summary: string;
-    generate_suggestions: string | null;
+    generate_suggestions: Record<string, unknown> | null;
   };
 }
 

@@ -1,16 +1,26 @@
+import CheckCircleOutlineIcon from '@mui/icons-material/CheckCircleOutline';
+import CodeIcon from '@mui/icons-material/Code';
+import DashboardIcon from '@mui/icons-material/Dashboard';
 import PlayArrowIcon from '@mui/icons-material/PlayArrow';
 import SkipNextIcon from '@mui/icons-material/SkipNext';
+import TipsAndUpdatesOutlinedIcon from '@mui/icons-material/TipsAndUpdatesOutlined';
 import VisibilityIcon from '@mui/icons-material/Visibility';
 import {
   Alert,
   Box,
   Button,
+  Chip,
   CircularProgress,
   Divider,
+  LinearProgress,
+  Paper,
   Slider,
+  Stack,
   Tab,
   Tabs,
   TextField,
+  ToggleButton,
+  ToggleButtonGroup,
   Tooltip,
   Typography,
 } from '@mui/material';
@@ -86,7 +96,13 @@ function SectionLabel({ children }: { children: string }) {
   );
 }
 
-function DbOutput({ text }: { text: string }) {
+function formatDbOutput(value: unknown): string {
+  if (value == null) return '';
+  if (typeof value === 'string') return value;
+  return JSON.stringify(value, null, 2);
+}
+
+function DbOutput({ text }: { text: unknown }) {
   return (
     <Box sx={{ mt: 1.5 }}>
       <Divider sx={{ mb: 1.5 }} />
@@ -95,7 +111,7 @@ function DbOutput({ text }: { text: string }) {
         component="pre"
         sx={{ m: 0, p: 1.5, bgcolor: '#F5F5F5', borderRadius: 1, fontSize: 12, fontFamily: 'monospace', whiteSpace: 'pre-wrap', maxHeight: 220, overflowY: 'auto' }}
       >
-        {text}
+        {formatDbOutput(text)}
       </Box>
     </Box>
   );
@@ -115,6 +131,120 @@ function StepOutput({ result, label }: { result: StepResult | null | undefined; 
           sx={{ m: 0, p: 1.5, bgcolor: '#1E272E', color: '#B0BEC5', borderRadius: 1, fontSize: 12, fontFamily: '"Roboto Mono", monospace', whiteSpace: 'pre-wrap', maxHeight: 280, overflowY: 'auto' }}
         >
           {result.output ?? '(empty)'}
+        </Box>
+      )}
+    </Box>
+  );
+}
+
+// ── Structured suggestions output ────────────────────────────────────────────
+
+interface QScores { structure: number; native: number; wording: number; }
+interface QFeedback { question_index: number; positive_points: string[]; need_improvement_points: string[]; scores: QScores; }
+interface StructuredSugg { questions: QFeedback[]; }
+
+function parseStructured(value: unknown): StructuredSugg | null {
+  try {
+    const obj = typeof value === 'string' ? JSON.parse(value) : value;
+    if (obj && Array.isArray((obj as StructuredSugg).questions)) return obj as StructuredSugg;
+  } catch { /* ignore */ }
+  return null;
+}
+
+function scoreColor(v: number): 'error' | 'warning' | 'success' {
+  if (v <= 2) return 'error';
+  if (v <= 3) return 'warning';
+  return 'success';
+}
+
+function StructuredSuggestionsView({ data }: { data: StructuredSugg }) {
+  return (
+    <Stack spacing={1.5} sx={{ mt: 1 }}>
+      {data.questions.map((q) => (
+        <Paper key={q.question_index} variant="outlined" sx={{ p: 2, borderRadius: 2 }}>
+          <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 1.5 }} flexWrap="wrap" gap={1}>
+            <Typography variant="subtitle2" fontWeight={700}>Question {q.question_index}</Typography>
+            <Stack direction="row" spacing={0.75} flexWrap="wrap" useFlexGap>
+              {(['structure', 'native', 'wording'] as (keyof QScores)[]).map((k) => (
+                <Chip key={k} size="small" variant="outlined" color={scoreColor(q.scores[k])}
+                  label={`${k.charAt(0).toUpperCase() + k.slice(1)}: ${q.scores[k]}/5`} />
+              ))}
+            </Stack>
+          </Stack>
+
+          {/* Score bars */}
+          <Stack spacing={0.75} sx={{ mb: 1.5 }}>
+            {(['structure', 'native', 'wording'] as (keyof QScores)[]).map((k) => (
+              <Box key={k}>
+                <Stack direction="row" justifyContent="space-between">
+                  <Typography variant="caption" color="text.secondary" sx={{ textTransform: 'capitalize' }}>{k === 'native' ? 'Native fluency' : k}</Typography>
+                  <Typography variant="caption" fontWeight={700}>{q.scores[k]}/5</Typography>
+                </Stack>
+                <LinearProgress variant="determinate" value={(q.scores[k] / 5) * 100}
+                  color={scoreColor(q.scores[k])} sx={{ height: 6, borderRadius: 999 }} />
+              </Box>
+            ))}
+          </Stack>
+
+          <Divider sx={{ mb: 1.5 }} />
+
+          <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2}>
+            <Box flex={1}>
+              <Typography variant="caption" fontWeight={700} color="success.main" sx={{ display: 'flex', alignItems: 'center', gap: 0.5, mb: 0.75 }}>
+                <CheckCircleOutlineIcon fontSize="inherit" /> Strengths
+              </Typography>
+              <Stack spacing={0.5}>
+                {q.positive_points.map((p, i) => (
+                  <Typography key={i} variant="caption" sx={{ display: 'block' }}>• {p}</Typography>
+                ))}
+              </Stack>
+            </Box>
+            <Box flex={1}>
+              <Typography variant="caption" fontWeight={700} color="warning.main" sx={{ display: 'flex', alignItems: 'center', gap: 0.5, mb: 0.75 }}>
+                <TipsAndUpdatesOutlinedIcon fontSize="inherit" /> Needs improvement
+              </Typography>
+              <Stack spacing={0.5}>
+                {q.need_improvement_points.map((p, i) => (
+                  <Typography key={i} variant="caption" sx={{ display: 'block' }}>• {p}</Typography>
+                ))}
+              </Stack>
+            </Box>
+          </Stack>
+        </Paper>
+      ))}
+    </Stack>
+  );
+}
+
+function SuggestionsOutput({ value, label }: { value: unknown; label: string }) {
+  const [view, setView] = useState<'structured' | 'raw'>('structured');
+  const structured = parseStructured(value);
+  const rawText = typeof value === 'string' ? value : JSON.stringify(value, null, 2);
+
+  if (!value) return null;
+
+  return (
+    <Box sx={{ mt: 1.5 }}>
+      <Divider sx={{ mb: 1.5 }} />
+      <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 1 }}>
+        <SectionLabel>{label}</SectionLabel>
+        {structured && (
+          <ToggleButtonGroup size="small" value={view} exclusive onChange={(_, v) => v && setView(v)} sx={{ height: 24 }}>
+            <ToggleButton value="structured" sx={{ px: 1, fontSize: 11 }}>
+              <DashboardIcon sx={{ fontSize: 13, mr: 0.5 }} /> Structured
+            </ToggleButton>
+            <ToggleButton value="raw" sx={{ px: 1, fontSize: 11 }}>
+              <CodeIcon sx={{ fontSize: 13, mr: 0.5 }} /> Raw JSON
+            </ToggleButton>
+          </ToggleButtonGroup>
+        )}
+      </Stack>
+      {view === 'structured' && structured ? (
+        <StructuredSuggestionsView data={structured} />
+      ) : (
+        <Box component="pre"
+          sx={{ m: 0, p: 1.5, bgcolor: '#1E272E', color: '#B0BEC5', borderRadius: 1, fontSize: 12, fontFamily: '"Roboto Mono", monospace', whiteSpace: 'pre-wrap', maxHeight: 340, overflowY: 'auto' }}>
+          {rawText}
         </Box>
       )}
     </Box>
@@ -644,10 +774,15 @@ export default function PromptLabPage() {
             <StepCard
               stepId="generate_suggestions"
               title="Step 2: Generate Suggestions"
-              subtitle="Assessment summary → coaching suggestions"
+              subtitle="Assessment summary → structured per-question feedback (JSON)"
               result={reportResults.generate_suggestions}
               defaultExpanded
             >
+              <Alert severity="info" icon={false} sx={{ mb: 1.5, fontSize: 12 }}>
+                Model: <strong>google/gemma-4-26b-a4b-it</strong> &nbsp;·&nbsp;
+                Output format: <strong>json_object</strong> &nbsp;·&nbsp;
+                Fields per question: <strong>positive_points</strong>, <strong>need_improvement_points</strong>, <strong>scores</strong> (structure / native / wording, 1–5)
+              </Alert>
               {suggestionsEdit && (
                 <StepControls
                   edit={suggestionsEdit}
@@ -665,9 +800,18 @@ export default function PromptLabPage() {
                 />
               )}
               {reportWorkflow.current_outputs.generate_suggestions && !reportResults.generate_suggestions && (
-                <DbOutput text={reportWorkflow.current_outputs.generate_suggestions} />
+                <SuggestionsOutput value={reportWorkflow.current_outputs.generate_suggestions} label="Current DB output" />
               )}
-              <StepOutput result={reportResults.generate_suggestions} label="Suggestions" />
+              {reportResults.generate_suggestions && (
+                reportResults.generate_suggestions.error ? (
+                  <Box sx={{ mt: 2 }}>
+                    <Divider sx={{ mb: 1.5 }} />
+                    <Alert severity="error" sx={{ fontSize: 12 }}>{reportResults.generate_suggestions.error}</Alert>
+                  </Box>
+                ) : (
+                  <SuggestionsOutput value={reportResults.generate_suggestions.output} label="Suggestions output" />
+                )
+              )}
             </StepCard>
           </WorkflowStepper>
         </>

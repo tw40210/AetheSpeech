@@ -19,7 +19,7 @@ class SuggestionReport(Base):
     )
     answer_ids: Mapped[list] = mapped_column(JSON, nullable=False, default=list)
 
-    suggestions: Mapped[str] = mapped_column(Text, nullable=True)
+    suggestions: Mapped[dict | None] = mapped_column(JSON, nullable=True)
 
     status: Mapped[str] = mapped_column(String(20), nullable=False, default="pending")
     error_message: Mapped[str] = mapped_column(Text, nullable=True)

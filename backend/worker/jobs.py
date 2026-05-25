@@ -130,7 +130,7 @@ def run_generate_report(report_id: str) -> None:
                 questions_map = {str(q.id): q for q in qs}
 
             summary_text = build_assessment_summary(assessments, questions_map)
-            suggestions = generate_suggestions(summary_text)
+            suggestions = generate_suggestions(summary_text, len(answer_ids))
             report.suggestions = suggestions
             report.status = "done"
             db.commit()

@@ -157,9 +157,20 @@ class TestGenerateReport:
             [],
         ]
 
+        sample_suggestions = {
+            "questions": [
+                {
+                    "question_index": 1,
+                    "positive_points": ["Good pace"],
+                    "need_improvement_points": ["Be more concise"],
+                    "scores": {"structure": 3, "native": 4, "wording": 3},
+                }
+            ]
+        }
+
         with (
             patch("worker.jobs.build_assessment_summary", return_value="summary text"),
-            patch("worker.jobs.generate_suggestions", return_value="Be more concise."),
+            patch("worker.jobs.generate_suggestions", return_value=sample_suggestions),
             patch("worker.jobs.get_sync_db") as mock_ctx,
         ):
             mock_ctx.return_value.__enter__ = MagicMock(return_value=db)
@@ -167,7 +178,7 @@ class TestGenerateReport:
             jobs.run_generate_report(str(report.id))
 
         assert report.status == "done"
-        assert report.suggestions == "Be more concise."
+        assert report.suggestions == sample_suggestions
 
     def test_report_not_found(self):
         from worker import jobs

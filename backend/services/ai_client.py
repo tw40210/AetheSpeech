@@ -15,6 +15,10 @@ from services.prompt_defaults import (
     build_rephrase_payload,
     build_suggestions_payload,
 )
+from services.suggestions_parser import (
+    build_suggestions_retry_prompt,
+    validate_suggestions,
+)
 from services.xml_parser import (
     build_retry_prompt,
     extract_xml_block,
@@ -176,16 +180,39 @@ def rephrase_transcript(
 # ── Report Suggestions ────────────────────────────────────────────────────────
 
 
-def generate_suggestions(assessments_text: str) -> str:
-    """Given formatted Q&A assessments, produce actionable improvement suggestions."""
-    payload = build_suggestions_payload(assessments_text)
+def generate_suggestions(assessments_text: str, question_count: int) -> dict:
+    """Given formatted Q&A assessments, produce structured per-question feedback."""
+    payload = build_suggestions_payload(assessments_text, question_count)
+    messages = list(payload["messages"])
 
-    with httpx.Client(timeout=90) as client:
-        response = client.post(
-            f"{settings.OPENROUTER_BASE_URL}/chat/completions",
-            headers=_headers(),
-            json=payload,
-        )
-        response.raise_for_status()
+    last_error = ""
+    last_attempt = ""
+    max_retries = settings.SUGGESTIONS_MAX_RETRIES
 
-    return response.json()["choices"][0]["message"]["content"].strip()
+    for attempt in range(max_retries):
+        if attempt > 0:
+            messages.append(
+                {"role": "user", "content": build_suggestions_retry_prompt(last_error, last_attempt)}
+            )
+
+        with httpx.Client(timeout=90) as client:
+            response = client.post(
+                f"{settings.OPENROUTER_BASE_URL}/chat/completions",
+                headers=_headers(),
+                json={**payload, "messages": messages},
+            )
+            response.raise_for_status()
+
+        content = response.json()["choices"][0]["message"]["content"].strip()
+        is_valid, error, parsed = validate_suggestions(content, question_count)
+        if is_valid and parsed is not None:
+            return parsed.model_dump()
+
+        last_error = error
+        last_attempt = content
+        messages.append({"role": "assistant", "content": content})
+
+    raise ValueError(
+        f"LLM produced invalid suggestions JSON after {max_retries} attempts. "
+        f"Last error: {last_error}"
+    )

@@ -7,7 +7,12 @@ export default defineConfig({
   server: {
     port: 3001,
     proxy: {
-      '/admin': {
+      // Proxy API only — do not use '/admin' (it also matches '/admin-ui/...').
+      '/admin/db': {
+        target: 'http://localhost:8000',
+        changeOrigin: true,
+      },
+      '/admin/workflows': {
         target: 'http://localhost:8000',
         changeOrigin: true,
       },

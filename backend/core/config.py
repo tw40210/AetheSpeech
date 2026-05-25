@@ -19,8 +19,10 @@ class Settings(BaseSettings):
     OPENROUTER_BASE_URL: str = "https://openrouter.ai/api/v1"
     WHISPER_MODEL: str = "openai/whisper-large-v3-turbo"
     LLM_MODEL: str = "qwen/qwen3-235b-a22b-2507"
+    SUGGESTIONS_LLM_MODEL: str = "google/gemma-4-26b-a4b-it"
 
     XML_LABEL_MAX_RETRIES: int = 3
+    SUGGESTIONS_MAX_RETRIES: int = 3
     XML_WORD_COUNT_DIFF_THRESHOLD: float = 0.1
     REPORT_POLL_TIMEOUT_SECONDS: int = 300
     WORKER_POLL_INTERVAL_SECONDS: int = 2

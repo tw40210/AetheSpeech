@@ -118,14 +118,23 @@ async def test_get_report_done(client, auth_headers, db_session):
     )
     report = result.scalar_one()
     report.status = "done"
-    report.suggestions = "Great job! Improve X and Y."
+    report.suggestions = {
+        "questions": [
+            {
+                "question_index": 1,
+                "positive_points": ["Clear opening"],
+                "need_improvement_points": ["Add more detail"],
+                "scores": {"structure": 4, "native": 3, "wording": 4},
+            }
+        ]
+    }
     await db_session.commit()
 
     get_resp = await client.get(f"/reports/{report_id}", headers=auth_headers)
     assert get_resp.status_code == 200
     data = get_resp.json()
     assert data["status"] == "done"
-    assert data["suggestions"] == "Great job! Improve X and Y."
+    assert data["suggestions"]["questions"][0]["positive_points"] == ["Clear opening"]
     # Assessments should be included
     assert len(data["assessments"]) == 3
 

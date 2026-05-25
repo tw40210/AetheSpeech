@@ -231,7 +231,8 @@ async def get_report_workflow(
         questions_map = {str(q.id): q for q in qs.all()}
 
     assessments_text = build_assessment_summary(assessments, questions_map)
-    suggestions_payload = build_suggestions_payload(assessments_text)
+    question_count = len(assessments)
+    suggestions_payload = build_suggestions_payload(assessments_text, question_count)
 
     return {
         "report": {
@@ -328,9 +329,11 @@ async def run_report_workflow(
 
                 summary = build_assessment_summary(assessments, questions_map)
 
-            default = build_suggestions_payload(summary)
+            default = build_suggestions_payload(summary, len(report.answer_ids))
             payload = _merge_payload(default, body.overrides.get("generate_suggestions"))
-            results["generate_suggestions"] = await run_suggestions_step(payload)
+            results["generate_suggestions"] = await run_suggestions_step(
+                payload, question_count=len(report.answer_ids)
+            )
 
         else:
             results[step] = {"output": None, "error": f"Unknown step: {step!r}"}
@@ -359,8 +362,8 @@ async def get_workflow_defaults():
             "temperature": 0.4,
         },
         "generate_suggestions": {
-            "system_prompt": build_suggestions_system_prompt(),
-            "model": settings.LLM_MODEL,
+            "system_prompt": build_suggestions_system_prompt(3),
+            "model": settings.SUGGESTIONS_LLM_MODEL,
             "temperature": 0.5,
         },
     }

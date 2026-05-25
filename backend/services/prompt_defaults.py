@@ -74,26 +74,42 @@ def build_rephrase_payload(question: str, transcript: str, labels: list[dict]) -
 # ── Suggestions step ──────────────────────────────────────────────────────────
 
 
-def build_suggestions_system_prompt() -> str:
+def build_suggestions_system_prompt(question_count: int) -> str:
+    indices = list(range(1, question_count + 1))
     return (
         "You are an expert communication coach specialising in structured business presentations. "
-        "Carefully analyse the following question-and-answer session transcript with structural labels. "
-        "Identify gaps, strengths, and weak points in each answer. "
-        "Provide specific, actionable suggestions to improve the speaker's communication. "
-        "Structure your response with:\n"
-        "1. Overall Assessment (2-3 sentences)\n"
-        "2. Per-Question Feedback (brief bullet points per question)\n"
-        "3. Top 3 Priority Improvements\n"
-        "Be encouraging yet honest."
+        "Analyse each question-and-answer pair in the session transcript (including structural labels). "
+        f"Return feedback for exactly {question_count} question(s). "
+        "Output ONLY a JSON object — no markdown, no explanation, no code fences.\n\n"
+        "Required JSON shape:\n"
+        "{\n"
+        '  "questions": [\n'
+        "    {\n"
+        f'      "question_index": <integer, one of {indices}>,\n'
+        '      "positive_points": ["<strength>", ...],\n'
+        '      "need_improvement_points": ["<improvement>", ...],\n'
+        '      "scores": {"structure": <1-5>, "native": <1-5>, "wording": <1-5>}\n'
+        "    }\n"
+        "  ]\n"
+        "}\n\n"
+        "Rules:\n"
+        f"- questions array must have exactly {question_count} item(s) with question_index {indices}.\n"
+        "- positive_points and need_improvement_points must each have 2-4 strings.\n"
+        "- All score values are integers 1 (weak) to 5 (excellent).\n"
+        "- Be specific and actionable. Be encouraging yet honest."
     )
 
 
-def build_suggestions_payload(assessments_text: str) -> dict:
+def build_suggestions_payload(assessments_text: str, question_count: int) -> dict:
     return {
-        "model": settings.LLM_MODEL,
+        "model": settings.SUGGESTIONS_LLM_MODEL,
         "temperature": 0.5,
         "messages": [
-            {"role": "system", "content": build_suggestions_system_prompt()},
+            {
+                "role": "system",
+                "content": build_suggestions_system_prompt(question_count),
+            },
             {"role": "user", "content": assessments_text},
         ],
+        "response_format": {"type": "json_object"},
     }

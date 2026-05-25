@@ -10,6 +10,7 @@ import logging
 import httpx
 
 from core.config import settings
+from services.suggestions_parser import build_suggestions_retry_prompt, validate_suggestions
 from services.xml_parser import build_retry_prompt, extract_xml_block, validate_xml
 
 logger = logging.getLogger(__name__)
@@ -120,13 +121,41 @@ async def run_rephrase_step(payload: dict, valid_keys: list[str]) -> dict:
     }
 
 
-async def run_suggestions_step(payload: dict) -> dict:
+async def run_suggestions_step(payload: dict, question_count: int | None = None) -> dict:
     """
     Execute the generate_suggestions step.
     Returns {"output": str | None, "error": str | None}.
     """
-    try:
-        content = await _call_chat(payload)
-        return {"output": content, "error": None}
-    except Exception as exc:
-        return {"output": None, "error": str(exc)}
+    max_retries = payload.get("max_retries", settings.SUGGESTIONS_MAX_RETRIES)
+    messages = list(payload["messages"])
+    last_error = ""
+    last_attempt = ""
+
+    for attempt in range(max_retries):
+        if attempt > 0:
+            messages = messages + [
+                {"role": "assistant", "content": last_attempt},
+                {"role": "user", "content": build_suggestions_retry_prompt(last_error, last_attempt)},
+            ]
+
+        try:
+            content = await _call_chat({**payload, "messages": messages})
+        except Exception as exc:
+            return {"output": None, "attempts": attempt + 1, "error": str(exc)}
+
+        is_valid, error, parsed = validate_suggestions(content, question_count)
+        if is_valid and parsed is not None:
+            return {
+                "output": parsed.model_dump_json(indent=2),
+                "attempts": attempt + 1,
+                "error": None,
+            }
+
+        last_error = error
+        last_attempt = content
+
+    return {
+        "output": last_attempt,
+        "attempts": max_retries,
+        "error": f"Invalid suggestions JSON after {max_retries} attempts. Last error: {last_error}",
+    }
