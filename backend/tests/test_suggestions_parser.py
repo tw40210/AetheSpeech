@@ -2,6 +2,7 @@
 
 import pytest
 
+from schemas.suggestions_schema import StructuredSuggestions, normalize_stored_suggestions
 from services.suggestions_parser import validate_suggestions
 
 
@@ -10,12 +11,14 @@ VALID_JSON = """
   "questions": [
     {
       "question_index": 1,
+      "question_snippet": "Describe your biggest professional achievement",
       "positive_points": ["Clear structure", "Good examples"],
       "need_improvement_points": ["Slow pacing", "Weak closing"],
       "scores": {"structure": 4, "native": 3, "wording": 5}
     },
     {
       "question_index": 2,
+      "question_snippet": "How do you handle conflict on your team",
       "positive_points": ["Confident delivery"],
       "need_improvement_points": ["Needs clearer transitions"],
       "scores": {"structure": 3, "native": 4, "wording": 3}
@@ -45,6 +48,32 @@ def test_validate_suggestions_rejects_wrong_question_count():
     assert not ok
     assert "Expected 3 question entries" in error
     assert parsed is None
+
+
+def test_validate_suggestions_rejects_missing_question_snippet():
+    bad = VALID_JSON.replace(
+        '"question_snippet": "Describe your biggest professional achievement",\n      ',
+        "",
+    )
+    ok, error, parsed = validate_suggestions(bad, expected_question_count=2)
+    assert not ok
+    assert "question_snippet is required" in error
+    assert parsed is None
+
+
+def test_normalize_stored_suggestions_backfills_missing_snippet():
+    legacy = {
+        "questions": [
+            {
+                "question_index": 1,
+                "positive_points": ["Clear structure"],
+                "need_improvement_points": ["Slow pacing"],
+                "scores": {"structure": 4, "native": 3, "wording": 5},
+            }
+        ]
+    }
+    parsed = StructuredSuggestions.model_validate(normalize_stored_suggestions(legacy))
+    assert parsed.questions[0].question_snippet == "Question 1"
 
 
 def test_validate_suggestions_rejects_bad_indices():

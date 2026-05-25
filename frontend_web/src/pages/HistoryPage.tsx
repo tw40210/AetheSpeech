@@ -34,7 +34,7 @@ export default function HistoryPage() {
     <Box sx={{ minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
       <AppBar position="static" color="inherit">
         <Toolbar>
-          <IconButton edge="start" onClick={() => navigate(-1)}>
+          <IconButton edge="start" onClick={() => navigate('/dashboard', { replace: true })} aria-label="Back to home">
             <ArrowBackIcon />
           </IconButton>
           <Typography variant="h6" fontWeight="bold" sx={{ ml: 1 }}>
@@ -68,7 +68,11 @@ export default function HistoryPage() {
         ) : (
           <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.25 }}>
             {history.map((r) => (
-              <HistoryCard key={r.id} report={r} onTap={() => navigate(`/report/${r.id}`)} />
+              <HistoryCard
+                key={r.id}
+                report={r}
+                onTap={() => navigate(`/report/${r.id}`, { state: { from: 'history' } })}
+              />
             ))}
           </Box>
         )}

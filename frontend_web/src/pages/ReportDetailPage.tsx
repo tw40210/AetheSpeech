@@ -1,3 +1,4 @@
+import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import AutoAwesomeIcon from '@mui/icons-material/AutoAwesome';
 import CheckCircleOutlineIcon from '@mui/icons-material/CheckCircleOutline';
 import HomeIcon from '@mui/icons-material/Home';
@@ -16,17 +17,21 @@ import Tabs from '@mui/material/Tabs';
 import Toolbar from '@mui/material/Toolbar';
 import Typography from '@mui/material/Typography';
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import LabeledText from '../components/LabeledText';
 import type { AnswerAssessment, QuestionFeedback, Report, StructuredSuggestions } from '../core/types';
 import { useInterview } from '../context/InterviewContext';
 import { ReportFetchState, useReport } from '../context/ReportContext';
 
+type ReportLocationState = { from?: 'history' };
+
 export default function ReportDetailPage() {
   const { reportId } = useParams<{ reportId: string }>();
   const navigate = useNavigate();
+  const location = useLocation();
   const { fetchState, report, error, loadReport, reset } = useReport();
   const { reset: resetInterview } = useInterview();
+  const fromHistory = (location.state as ReportLocationState | null)?.from === 'history';
 
   useEffect(() => {
     if (reportId) loadReport(reportId);
@@ -39,14 +44,31 @@ export default function ReportDetailPage() {
     navigate('/dashboard', { replace: true });
   };
 
+  const handleBack = () => {
+    navigate('/history');
+  };
+
   return (
     <Box sx={{ minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
       <AppBar position="static" color="inherit">
         <Toolbar>
-          <Typography variant="h6" fontWeight="bold" sx={{ flex: 1, textAlign: 'center' }}>
+          {fromHistory ? (
+            <IconButton edge="start" onClick={handleBack} aria-label="Back to history">
+              <ArrowBackIcon />
+            </IconButton>
+          ) : null}
+          <Typography
+            variant="h6"
+            fontWeight="bold"
+            sx={{
+              flex: 1,
+              textAlign: fromHistory ? 'left' : 'center',
+              ml: fromHistory ? 1 : 0,
+            }}
+          >
             Assessment Report
           </Typography>
-          <IconButton onClick={handleHome}>
+          <IconButton onClick={handleHome} aria-label="Go to dashboard">
             <HomeIcon />
           </IconButton>
         </Toolbar>
@@ -233,13 +255,23 @@ function QuestionFeedbackCard({
         justifyContent="space-between"
         alignItems={{ xs: 'flex-start', sm: 'center' }}
         spacing={1.5}
-        sx={{ mb: 2 }}
+        sx={{ mb: feedback.question_snippet ? 1 : 2 }}
       >
         <Typography variant={compact ? 'subtitle1' : 'h6'} fontWeight="bold">
           {heading}
         </Typography>
         <ScoreChips scores={feedback.scores} />
       </Stack>
+
+      {feedback.question_snippet && (
+        <Typography
+          variant="body2"
+          color="text.secondary"
+          sx={{ mb: 2, fontStyle: 'italic' }}
+        >
+          {feedback.question_snippet}
+        </Typography>
+      )}
 
       <ScoreBars scores={feedback.scores} />
 

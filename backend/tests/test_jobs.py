@@ -161,6 +161,7 @@ class TestGenerateReport:
             "questions": [
                 {
                     "question_index": 1,
+                    "question_snippet": "What motivates you at work",
                     "positive_points": ["Good pace"],
                     "need_improvement_points": ["Be more concise"],
                     "scores": {"structure": 3, "native": 4, "wording": 3},

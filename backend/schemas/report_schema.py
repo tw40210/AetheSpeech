@@ -4,7 +4,7 @@ from datetime import datetime
 from pydantic import BaseModel, field_validator
 
 from schemas.answer_schema import AnswerAssessmentOut
-from schemas.suggestions_schema import StructuredSuggestions
+from schemas.suggestions_schema import StructuredSuggestions, normalize_stored_suggestions
 
 
 class ReportRequest(BaseModel):
@@ -26,7 +26,7 @@ class ReportOut(BaseModel):
         if value is None or isinstance(value, StructuredSuggestions):
             return value
         if isinstance(value, dict):
-            return StructuredSuggestions.model_validate(value)
+            return StructuredSuggestions.model_validate(normalize_stored_suggestions(value))
         return None
 
 
@@ -45,5 +45,5 @@ class ReportSummary(BaseModel):
         if value is None or isinstance(value, StructuredSuggestions):
             return value
         if isinstance(value, dict):
-            return StructuredSuggestions.model_validate(value)
+            return StructuredSuggestions.model_validate(normalize_stored_suggestions(value))
         return None

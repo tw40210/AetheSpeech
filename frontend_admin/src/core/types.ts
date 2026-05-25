@@ -1,3 +1,21 @@
+export interface QuestionScores {
+  structure: number;
+  native: number;
+  wording: number;
+}
+
+export interface QuestionFeedback {
+  question_index: number;
+  question_snippet: string;
+  positive_points: string[];
+  need_improvement_points: string[];
+  scores: QuestionScores;
+}
+
+export interface StructuredSuggestions {
+  questions: QuestionFeedback[];
+}
+
 // ── Database browser ──────────────────────────────────────────────────────────
 
 export interface TableInfo {
@@ -72,7 +90,7 @@ export interface ReportWorkflow {
     id: string;
     status: string;
     answer_ids: string[];
-    suggestions: Record<string, unknown> | null;
+    suggestions: StructuredSuggestions | null;
     error_message: string | null;
     created_at: string;
   };
@@ -90,14 +108,19 @@ export interface ReportWorkflow {
   };
   current_outputs: {
     build_summary: string;
-    generate_suggestions: Record<string, unknown> | null;
+    generate_suggestions: StructuredSuggestions | null;
   };
 }
 
 export interface WorkflowDefaults {
   label: { system_prompt: string; model: string; temperature: number; note: string };
   rephrase: { system_prompt: string; model: string; temperature: number; note: string };
-  generate_suggestions: { system_prompt: string; model: string; temperature: number };
+  generate_suggestions: {
+    system_prompt: string;
+    model: string;
+    temperature: number;
+    note: string;
+  };
 }
 
 export type AnswerStepId = 'transcribe' | 'label' | 'rephrase';

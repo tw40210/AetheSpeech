@@ -35,12 +35,15 @@ import type {
   AnswerWorkflow,
   ChatMessage,
   ChatPayload,
+  QuestionFeedback,
   ReportStepId,
   ReportWorkflow,
   StepOverride,
   StepResult,
+  StructuredSuggestions,
   WorkflowDefaults,
 } from '../core/types';
+import { parseStructuredSuggestions } from '../core/suggestions';
 import { adminApiClient } from '../services/adminApiClient';
 
 type PipelineTab = 'answer' | 'report';
@@ -140,16 +143,6 @@ function StepOutput({ result, label }: { result: StepResult | null | undefined; 
 // ── Structured suggestions output ────────────────────────────────────────────
 
 interface QScores { structure: number; native: number; wording: number; }
-interface QFeedback { question_index: number; positive_points: string[]; need_improvement_points: string[]; scores: QScores; }
-interface StructuredSugg { questions: QFeedback[]; }
-
-function parseStructured(value: unknown): StructuredSugg | null {
-  try {
-    const obj = typeof value === 'string' ? JSON.parse(value) : value;
-    if (obj && Array.isArray((obj as StructuredSugg).questions)) return obj as StructuredSugg;
-  } catch { /* ignore */ }
-  return null;
-}
 
 function scoreColor(v: number): 'error' | 'warning' | 'success' {
   if (v <= 2) return 'error';
@@ -157,68 +150,136 @@ function scoreColor(v: number): 'error' | 'warning' | 'success' {
   return 'success';
 }
 
-function StructuredSuggestionsView({ data }: { data: StructuredSugg }) {
+function QuestionReferencePanel({
+  assessments,
+}: {
+  assessments: ReportWorkflow['assessments'];
+}) {
+  if (assessments.length === 0) return null;
+
+  return (
+    <Paper variant="outlined" sx={{ p: 2, mb: 2, borderRadius: 2, bgcolor: 'grey.50' }}>
+      <Typography variant="caption" fontWeight={700} color="text.secondary" sx={{ display: 'block', mb: 1 }}>
+        Questions in this report (source text for question_snippet)
+      </Typography>
+      <Stack spacing={1}>
+        {assessments.map((a, i) => (
+          <Box key={a.id}>
+            <Typography variant="caption" fontWeight={700}>Question {i + 1}</Typography>
+            <Typography variant="body2" color="text.secondary">
+              {a.question_text ?? '(question text unavailable)'}
+            </Typography>
+          </Box>
+        ))}
+      </Stack>
+    </Paper>
+  );
+}
+
+function StructuredSuggestionsView({
+  data,
+  questionTexts,
+}: {
+  data: StructuredSuggestions;
+  questionTexts?: string[];
+}) {
   return (
     <Stack spacing={1.5} sx={{ mt: 1 }}>
       {data.questions.map((q) => (
-        <Paper key={q.question_index} variant="outlined" sx={{ p: 2, borderRadius: 2 }}>
-          <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 1.5 }} flexWrap="wrap" gap={1}>
-            <Typography variant="subtitle2" fontWeight={700}>Question {q.question_index}</Typography>
-            <Stack direction="row" spacing={0.75} flexWrap="wrap" useFlexGap>
-              {(['structure', 'native', 'wording'] as (keyof QScores)[]).map((k) => (
-                <Chip key={k} size="small" variant="outlined" color={scoreColor(q.scores[k])}
-                  label={`${k.charAt(0).toUpperCase() + k.slice(1)}: ${q.scores[k]}/5`} />
-              ))}
-            </Stack>
-          </Stack>
-
-          {/* Score bars */}
-          <Stack spacing={0.75} sx={{ mb: 1.5 }}>
-            {(['structure', 'native', 'wording'] as (keyof QScores)[]).map((k) => (
-              <Box key={k}>
-                <Stack direction="row" justifyContent="space-between">
-                  <Typography variant="caption" color="text.secondary" sx={{ textTransform: 'capitalize' }}>{k === 'native' ? 'Native fluency' : k}</Typography>
-                  <Typography variant="caption" fontWeight={700}>{q.scores[k]}/5</Typography>
-                </Stack>
-                <LinearProgress variant="determinate" value={(q.scores[k] / 5) * 100}
-                  color={scoreColor(q.scores[k])} sx={{ height: 6, borderRadius: 999 }} />
-              </Box>
-            ))}
-          </Stack>
-
-          <Divider sx={{ mb: 1.5 }} />
-
-          <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2}>
-            <Box flex={1}>
-              <Typography variant="caption" fontWeight={700} color="success.main" sx={{ display: 'flex', alignItems: 'center', gap: 0.5, mb: 0.75 }}>
-                <CheckCircleOutlineIcon fontSize="inherit" /> Strengths
-              </Typography>
-              <Stack spacing={0.5}>
-                {q.positive_points.map((p, i) => (
-                  <Typography key={i} variant="caption" sx={{ display: 'block' }}>• {p}</Typography>
-                ))}
-              </Stack>
-            </Box>
-            <Box flex={1}>
-              <Typography variant="caption" fontWeight={700} color="warning.main" sx={{ display: 'flex', alignItems: 'center', gap: 0.5, mb: 0.75 }}>
-                <TipsAndUpdatesOutlinedIcon fontSize="inherit" /> Needs improvement
-              </Typography>
-              <Stack spacing={0.5}>
-                {q.need_improvement_points.map((p, i) => (
-                  <Typography key={i} variant="caption" sx={{ display: 'block' }}>• {p}</Typography>
-                ))}
-              </Stack>
-            </Box>
-          </Stack>
-        </Paper>
+        <QuestionFeedbackCard key={q.question_index} feedback={q} sourceQuestion={questionTexts?.[q.question_index - 1]} />
       ))}
     </Stack>
   );
 }
 
-function SuggestionsOutput({ value, label }: { value: unknown; label: string }) {
+function QuestionFeedbackCard({
+  feedback,
+  sourceQuestion,
+}: {
+  feedback: QuestionFeedback;
+  sourceQuestion?: string;
+}) {
+  const autoFilled = feedback.question_snippet === `Question ${feedback.question_index}`;
+
+  return (
+    <Paper variant="outlined" sx={{ p: 2, borderRadius: 2 }}>
+      <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 1.5 }} flexWrap="wrap" gap={1}>
+        <Box>
+          <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap" useFlexGap>
+            <Typography variant="subtitle2" fontWeight={700}>Question {feedback.question_index}</Typography>
+            {autoFilled && (
+              <Chip size="small" label="snippet auto-filled" variant="outlined" color="default" sx={{ height: 20, fontSize: 10 }} />
+            )}
+          </Stack>
+          <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.25, fontStyle: 'italic' }}>
+            {feedback.question_snippet}
+          </Typography>
+          {sourceQuestion && (
+            <Typography variant="caption" color="text.disabled" sx={{ display: 'block', mt: 0.5 }}>
+              Source: {sourceQuestion}
+            </Typography>
+          )}
+        </Box>
+        <Stack direction="row" spacing={0.75} flexWrap="wrap" useFlexGap>
+          {(['structure', 'native', 'wording'] as (keyof QScores)[]).map((k) => (
+            <Chip key={k} size="small" variant="outlined" color={scoreColor(feedback.scores[k])}
+              label={`${k.charAt(0).toUpperCase() + k.slice(1)}: ${feedback.scores[k]}/5`} />
+          ))}
+        </Stack>
+      </Stack>
+
+      <Stack spacing={0.75} sx={{ mb: 1.5 }}>
+        {(['structure', 'native', 'wording'] as (keyof QScores)[]).map((k) => (
+          <Box key={k}>
+            <Stack direction="row" justifyContent="space-between">
+              <Typography variant="caption" color="text.secondary" sx={{ textTransform: 'capitalize' }}>{k === 'native' ? 'Native fluency' : k}</Typography>
+              <Typography variant="caption" fontWeight={700}>{feedback.scores[k]}/5</Typography>
+            </Stack>
+            <LinearProgress variant="determinate" value={(feedback.scores[k] / 5) * 100}
+              color={scoreColor(feedback.scores[k])} sx={{ height: 6, borderRadius: 999 }} />
+          </Box>
+        ))}
+      </Stack>
+
+      <Divider sx={{ mb: 1.5 }} />
+
+      <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2}>
+        <Box flex={1}>
+          <Typography variant="caption" fontWeight={700} color="success.main" sx={{ display: 'flex', alignItems: 'center', gap: 0.5, mb: 0.75 }}>
+            <CheckCircleOutlineIcon fontSize="inherit" /> Strengths
+          </Typography>
+          <Stack spacing={0.5}>
+            {feedback.positive_points.map((p, i) => (
+              <Typography key={i} variant="caption" sx={{ display: 'block' }}>• {p}</Typography>
+            ))}
+          </Stack>
+        </Box>
+        <Box flex={1}>
+          <Typography variant="caption" fontWeight={700} color="warning.main" sx={{ display: 'flex', alignItems: 'center', gap: 0.5, mb: 0.75 }}>
+            <TipsAndUpdatesOutlinedIcon fontSize="inherit" /> Needs improvement
+          </Typography>
+          <Stack spacing={0.5}>
+            {feedback.need_improvement_points.map((p, i) => (
+              <Typography key={i} variant="caption" sx={{ display: 'block' }}>• {p}</Typography>
+            ))}
+          </Stack>
+        </Box>
+      </Stack>
+    </Paper>
+  );
+}
+
+function SuggestionsOutput({
+  value,
+  label,
+  questionTexts,
+}: {
+  value: unknown;
+  label: string;
+  questionTexts?: string[];
+}) {
   const [view, setView] = useState<'structured' | 'raw'>('structured');
-  const structured = parseStructured(value);
+  const structured = parseStructuredSuggestions(value);
   const rawText = typeof value === 'string' ? value : JSON.stringify(value, null, 2);
 
   if (!value) return null;
@@ -240,7 +301,7 @@ function SuggestionsOutput({ value, label }: { value: unknown; label: string }) 
         )}
       </Stack>
       {view === 'structured' && structured ? (
-        <StructuredSuggestionsView data={structured} />
+        <StructuredSuggestionsView data={structured} questionTexts={questionTexts} />
       ) : (
         <Box component="pre"
           sx={{ m: 0, p: 1.5, bgcolor: '#1E272E', color: '#B0BEC5', borderRadius: 1, fontSize: 12, fontFamily: '"Roboto Mono", monospace', whiteSpace: 'pre-wrap', maxHeight: 340, overflowY: 'auto' }}>
@@ -357,7 +418,7 @@ export default function PromptLabPage() {
   const [answerWorkflow, setAnswerWorkflow] = useState<AnswerWorkflow | null>(null);
   const [reportWorkflow, setReportWorkflow] = useState<ReportWorkflow | null>(null);
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const [_defaults, setDefaults] = useState<WorkflowDefaults | null>(null);
+  const [defaults, setDefaults] = useState<WorkflowDefaults | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
@@ -553,6 +614,8 @@ export default function PromptLabPage() {
       messages: override.messages,
     };
   };
+
+  const reportQuestionTexts = reportWorkflow?.assessments.map((a) => a.question_text ?? '') ?? [];
 
   // ── Render ────────────────────────────────────────────────────────────────
 
@@ -778,11 +841,17 @@ export default function PromptLabPage() {
               result={reportResults.generate_suggestions}
               defaultExpanded
             >
+              <QuestionReferencePanel assessments={reportWorkflow.assessments} />
               <Alert severity="info" icon={false} sx={{ mb: 1.5, fontSize: 12 }}>
-                Model: <strong>google/gemma-4-26b-a4b-it</strong> &nbsp;·&nbsp;
+                Model: <strong>{defaults?.generate_suggestions.model ?? suggestionsEdit?.model ?? '—'}</strong> &nbsp;·&nbsp;
                 Output format: <strong>json_object</strong> &nbsp;·&nbsp;
-                Fields per question: <strong>positive_points</strong>, <strong>need_improvement_points</strong>, <strong>scores</strong> (structure / native / wording, 1–5)
+                Fields per question: <strong>question_index</strong>, <strong>question_snippet</strong>, <strong>positive_points</strong>, <strong>need_improvement_points</strong>, <strong>scores</strong> (structure / native / wording, 1–5)
               </Alert>
+              {defaults?.generate_suggestions.note && (
+                <Alert severity="info" sx={{ mb: 1.5, fontSize: 12 }}>
+                  {defaults.generate_suggestions.note}
+                </Alert>
+              )}
               {suggestionsEdit && (
                 <StepControls
                   edit={suggestionsEdit}
@@ -800,7 +869,11 @@ export default function PromptLabPage() {
                 />
               )}
               {reportWorkflow.current_outputs.generate_suggestions && !reportResults.generate_suggestions && (
-                <SuggestionsOutput value={reportWorkflow.current_outputs.generate_suggestions} label="Current DB output" />
+                <SuggestionsOutput
+                  value={reportWorkflow.current_outputs.generate_suggestions}
+                  label="Current DB output"
+                  questionTexts={reportQuestionTexts}
+                />
               )}
               {reportResults.generate_suggestions && (
                 reportResults.generate_suggestions.error ? (
@@ -809,7 +882,11 @@ export default function PromptLabPage() {
                     <Alert severity="error" sx={{ fontSize: 12 }}>{reportResults.generate_suggestions.error}</Alert>
                   </Box>
                 ) : (
-                  <SuggestionsOutput value={reportResults.generate_suggestions.output} label="Suggestions output" />
+                  <SuggestionsOutput
+                    value={reportResults.generate_suggestions.output}
+                    label="Suggestions output"
+                    questionTexts={reportQuestionTexts}
+                  />
                 )
               )}
             </StepCard>
@@ -840,6 +917,8 @@ export default function PromptLabPage() {
   );
 
   function resetReportStep() {
-    if (reportWorkflow) setSuggestionsEdit(payloadToEditable(reportWorkflow.default_payloads.generate_suggestions));
+    if (reportWorkflow) {
+      setSuggestionsEdit(payloadToEditable(reportWorkflow.default_payloads.generate_suggestions));
+    }
   }
 }

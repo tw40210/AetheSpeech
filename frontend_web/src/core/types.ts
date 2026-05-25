@@ -38,6 +38,7 @@ export interface QuestionScores {
 
 export interface QuestionFeedback {
   question_index: number;
+  question_snippet: string;
   positive_points: string[];
   need_improvement_points: string[];
   scores: QuestionScores;

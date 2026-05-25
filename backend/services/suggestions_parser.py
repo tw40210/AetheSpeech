@@ -33,6 +33,16 @@ def validate_suggestions(
     except json.JSONDecodeError as exc:
         return False, f"JSON parse error: {exc}", None
 
+    questions = data.get("questions")
+    if isinstance(questions, list):
+        for q in questions:
+            if isinstance(q, dict) and not q.get("question_snippet"):
+                return (
+                    False,
+                    "Schema validation error: question_snippet is required for each question",
+                    None,
+                )
+
     try:
         parsed = StructuredSuggestions.model_validate(data)
     except ValidationError as exc:

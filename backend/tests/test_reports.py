@@ -1,6 +1,7 @@
 """Tests for POST /reports, GET /reports/{id}, and GET /reports/history."""
 
 import uuid
+from datetime import datetime, timezone
 
 import pytest
 
@@ -8,6 +9,7 @@ from models.answer import AnswerAssessment
 from models.report import SuggestionReport
 from models.topic import Question, Topic
 from models.user import User
+from schemas.report_schema import ReportSummary
 
 
 async def _seed_user_and_assessments(db_session, email="rep@example.com", count=3):
@@ -122,6 +124,7 @@ async def test_get_report_done(client, auth_headers, db_session):
         "questions": [
             {
                 "question_index": 1,
+                "question_snippet": "Tell me about a time you led a project",
                 "positive_points": ["Clear opening"],
                 "need_improvement_points": ["Add more detail"],
                 "scores": {"structure": 4, "native": 3, "wording": 4},
@@ -191,6 +194,28 @@ async def test_report_history_returns_user_reports(client, auth_headers, db_sess
     resp = await client.get("/reports/history", headers=auth_headers)
     assert resp.status_code == 200
     assert len(resp.json()) == 2
+
+
+def test_report_summary_accepts_legacy_suggestions_without_snippet():
+    legacy_suggestions = {
+        "questions": [
+            {
+                "question_index": 1,
+                "positive_points": ["Clear opening"],
+                "need_improvement_points": ["Add more detail"],
+                "scores": {"structure": 4, "native": 3, "wording": 4},
+            }
+        ]
+    }
+    summary = ReportSummary(
+        id=uuid.uuid4(),
+        status="done",
+        suggestions=legacy_suggestions,
+        answer_count=1,
+        created_at=datetime.now(timezone.utc),
+    )
+    assert summary.suggestions is not None
+    assert summary.suggestions.questions[0].question_snippet == "Question 1"
 
 
 @pytest.mark.asyncio

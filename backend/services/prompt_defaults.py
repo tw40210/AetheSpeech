@@ -86,6 +86,7 @@ def build_suggestions_system_prompt(question_count: int) -> str:
         '  "questions": [\n'
         "    {\n"
         f'      "question_index": <integer, one of {indices}>,\n'
+        '      "question_snippet": "<short excerpt of the question text>",\n'
         '      "positive_points": ["<strength>", ...],\n'
         '      "need_improvement_points": ["<improvement>", ...],\n'
         '      "scores": {"structure": <1-5>, "native": <1-5>, "wording": <1-5>}\n'
@@ -94,6 +95,7 @@ def build_suggestions_system_prompt(question_count: int) -> str:
         "}\n\n"
         "Rules:\n"
         f"- questions array must have exactly {question_count} item(s) with question_index {indices}.\n"
+        "- question_snippet must be a brief excerpt (roughly 5-15 words) copied or paraphrased from the question text for that index.\n"
         "- positive_points and need_improvement_points must each have 2-4 strings.\n"
         "- All score values are integers 1 (weak) to 5 (excellent).\n"
         "- Be specific and actionable. Be encouraging yet honest.\n"

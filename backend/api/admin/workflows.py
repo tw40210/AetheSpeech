@@ -32,10 +32,23 @@ from services.prompt_defaults import (
     build_suggestions_payload,
     build_suggestions_system_prompt,
 )
+from schemas.suggestions_schema import StructuredSuggestions, normalize_stored_suggestions
 from services.report_service import build_assessment_summary
 from services.workflow_runner import run_label_step, run_rephrase_step, run_suggestions_step
 
 router = APIRouter(prefix="/workflows", tags=["admin-workflows"])
+
+
+def _coerce_stored_suggestions(value) -> dict | None:
+    if value is None:
+        return None
+    if isinstance(value, StructuredSuggestions):
+        return value.model_dump()
+    if isinstance(value, dict):
+        return StructuredSuggestions.model_validate(
+            normalize_stored_suggestions(value)
+        ).model_dump()
+    return None
 
 
 # ── Pydantic models ───────────────────────────────────────────────────────────
@@ -239,7 +252,7 @@ async def get_report_workflow(
             "id": str(report.id),
             "status": report.status,
             "answer_ids": report.answer_ids,
-            "suggestions": report.suggestions,
+            "suggestions": _coerce_stored_suggestions(report.suggestions),
             "error_message": report.error_message,
             "created_at": report.created_at.isoformat(),
         },
@@ -262,7 +275,7 @@ async def get_report_workflow(
         },
         "current_outputs": {
             "build_summary": assessments_text,
-            "generate_suggestions": report.suggestions,
+            "generate_suggestions": _coerce_stored_suggestions(report.suggestions),
         },
     }
 
@@ -363,6 +376,10 @@ async def get_workflow_defaults():
         },
         "generate_suggestions": {
             "system_prompt": build_suggestions_system_prompt(3),
+            "note": (
+                "Each question entry must include question_snippet — a brief excerpt "
+                "of the question text that links feedback back to the source question."
+            ),
             "model": settings.SUGGESTIONS_LLM_MODEL,
             "temperature": 0.5,
         },
