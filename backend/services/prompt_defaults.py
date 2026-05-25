@@ -96,7 +96,7 @@ def build_suggestions_system_prompt(question_count: int) -> str:
         f"- questions array must have exactly {question_count} item(s) with question_index {indices}.\n"
         "- positive_points and need_improvement_points must each have 2-4 strings.\n"
         "- All score values are integers 1 (weak) to 5 (excellent).\n"
-        "- Be specific and actionable. Be encouraging yet honest."
+        "- Be specific and actionable. Be encouraging yet honest.\n"
         "- The returned order should be the same."
     )
 
