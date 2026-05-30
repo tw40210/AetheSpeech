@@ -7,6 +7,7 @@ from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
 from api import auth, topics, questions, answers, reports
+from api.topic_generation import router as topic_generation_router
 from api.admin.router import router as admin_router
 from core.config import settings
 from core.database import async_engine, Base
@@ -79,6 +80,7 @@ app.include_router(topics.router)
 app.include_router(questions.router)
 app.include_router(answers.router)
 app.include_router(reports.router)
+app.include_router(topic_generation_router)
 app.include_router(admin_router)
 
 

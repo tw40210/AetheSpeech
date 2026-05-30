@@ -23,7 +23,7 @@ from services.ai_client import (
     transcribe_audio,
 )
 from services.audio_service import delete_audio
-from services.report_service import build_assessment_summary
+from services.report_service import build_assessment_texts, order_assessments
 from worker.db import get_sync_db
 
 logger = logging.getLogger(__name__)
@@ -32,11 +32,12 @@ logger = logging.getLogger(__name__)
 def fetch_assessments(db, answer_ids: list[uuid.UUID]) -> list[AnswerAssessment]:
     if not answer_ids:
         return []
-    return (
+    rows = (
         db.query(AnswerAssessment)
         .filter(AnswerAssessment.id.in_(answer_ids))
         .all()
     )
+    return order_assessments(rows, answer_ids)
 
 
 def assessments_ready(assessments: list[AnswerAssessment], expected: int) -> bool:
@@ -129,8 +130,8 @@ def run_generate_report(report_id: str) -> None:
                 qs = db.query(Question).filter(Question.id.in_(question_ids)).all()
                 questions_map = {str(q.id): q for q in qs}
 
-            summary_text = build_assessment_summary(assessments, questions_map)
-            suggestions = generate_suggestions(summary_text, len(answer_ids))
+            assessment_texts = build_assessment_texts(assessments, questions_map)
+            suggestions = generate_suggestions(assessment_texts)
             report.suggestions = suggestions
             report.status = "done"
             db.commit()

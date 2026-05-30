@@ -76,9 +76,9 @@ def build_rephrase_payload(question: str, transcript: str, labels: list[dict]) -
 
 def build_suggestions_system_prompt(question_count: int) -> str:
     indices = list(range(1, question_count + 1))
-    return (
+    base = (
         "You are an expert communication coach specialising in structured business presentations. "
-        "Analyse each question-and-answer pair in the session transcript (including structural labels). "
+        "Analyse the question-and-answer pair in the session transcript (including structural labels). "
         f"Return feedback for exactly {question_count} question(s). "
         "Output ONLY a JSON object — no markdown, no explanation, no code fences.\n\n"
         "Required JSON shape:\n"
@@ -98,9 +98,11 @@ def build_suggestions_system_prompt(question_count: int) -> str:
         "- question_snippet must be a brief excerpt (roughly 5-15 words) copied or paraphrased from the question text for that index.\n"
         "- positive_points and need_improvement_points must each have 2-4 strings.\n"
         "- All score values are integers 1 (weak) to 5 (excellent).\n"
-        "- Be specific and actionable. Be encouraging yet honest.\n"
-        "- The returned order should be the same."
+        "- Be specific and actionable. Be encouraging yet honest."
     )
+    if question_count > 1:
+        return base + "\n- The returned order should match the input order."
+    return base
 
 
 def build_suggestions_payload(assessments_text: str, question_count: int) -> dict:

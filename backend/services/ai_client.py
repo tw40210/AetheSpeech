@@ -180,9 +180,9 @@ def rephrase_transcript(
 # ── Report Suggestions ────────────────────────────────────────────────────────
 
 
-def generate_suggestions(assessments_text: str, question_count: int) -> dict:
-    """Given formatted Q&A assessments, produce structured per-question feedback."""
-    payload = build_suggestions_payload(assessments_text, question_count)
+def _generate_single_suggestion(assessment_text: str) -> dict:
+    """Generate feedback for one Q&A pair. Returns one question feedback dict."""
+    payload = build_suggestions_payload(assessment_text, question_count=1)
     messages = list(payload["messages"])
 
     last_error = ""
@@ -204,9 +204,9 @@ def generate_suggestions(assessments_text: str, question_count: int) -> dict:
             response.raise_for_status()
 
         content = response.json()["choices"][0]["message"]["content"].strip()
-        is_valid, error, parsed = validate_suggestions(content, question_count)
+        is_valid, error, parsed = validate_suggestions(content, expected_question_count=1)
         if is_valid and parsed is not None:
-            return parsed.model_dump()
+            return parsed.questions[0].model_dump()
 
         last_error = error
         last_attempt = content
@@ -216,3 +216,17 @@ def generate_suggestions(assessments_text: str, question_count: int) -> dict:
         f"LLM produced invalid suggestions JSON after {max_retries} attempts. "
         f"Last error: {last_error}"
     )
+
+
+def generate_suggestions(assessment_texts: list[str]) -> dict:
+    """Generate feedback for each Q&A separately and merge in input order."""
+    if not assessment_texts:
+        raise ValueError("assessment_texts cannot be empty")
+
+    questions = []
+    for i, text in enumerate(assessment_texts, 1):
+        feedback = _generate_single_suggestion(text)
+        feedback["question_index"] = i
+        questions.append(feedback)
+
+    return {"questions": questions}

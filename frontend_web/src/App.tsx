@@ -7,6 +7,7 @@ import HistoryPage from './pages/HistoryPage';
 import PreparationPage from './pages/PreparationPage';
 import RecordingPage from './pages/RecordingPage';
 import ReportDetailPage from './pages/ReportDetailPage';
+import TopicGeneratorPage from './pages/TopicGeneratorPage';
 import WaitingPage from './pages/WaitingPage';
 
 export default function App() {
@@ -69,6 +70,15 @@ export default function App() {
         element={
           <ProtectedRoute>
             <ReportDetailPage />
+          </ProtectedRoute>
+        }
+      />
+
+      <Route
+        path="/topics/create"
+        element={
+          <ProtectedRoute>
+            <TopicGeneratorPage />
           </ProtectedRoute>
         }
       />

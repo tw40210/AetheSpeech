@@ -33,8 +33,16 @@ from services.prompt_defaults import (
     build_suggestions_system_prompt,
 )
 from schemas.suggestions_schema import StructuredSuggestions, normalize_stored_suggestions
-from services.report_service import build_assessment_summary
-from services.workflow_runner import run_label_step, run_rephrase_step, run_suggestions_step
+from services.report_service import (
+    build_assessment_summary,
+    build_assessment_texts,
+    split_assessment_summary,
+)
+from services.workflow_runner import (
+    run_label_step,
+    run_rephrase_step,
+    run_suggestions_batch_step,
+)
 
 router = APIRouter(prefix="/workflows", tags=["admin-workflows"])
 
@@ -244,8 +252,9 @@ async def get_report_workflow(
         questions_map = {str(q.id): q for q in qs.all()}
 
     assessments_text = build_assessment_summary(assessments, questions_map)
-    question_count = len(assessments)
-    suggestions_payload = build_suggestions_payload(assessments_text, question_count)
+    assessment_texts = build_assessment_texts(assessments, questions_map)
+    sample_text = assessment_texts[0] if assessment_texts else ""
+    suggestions_payload = build_suggestions_payload(sample_text, question_count=1)
 
     return {
         "report": {
@@ -322,30 +331,39 @@ async def run_report_workflow(
             results["build_summary"] = {"output": assembled_summary, "error": None}
 
         elif step == "generate_suggestions":
-            summary = body.summary_override or assembled_summary
-            if summary is None:
-                # Fallback: rebuild summary from DB
-                answer_ids = [uuid.UUID(aid) for aid in report.answer_ids]
-                assessments = []
-                if answer_ids:
-                    res = await db.scalars(
-                        select(AnswerAssessment).where(AnswerAssessment.id.in_(answer_ids))
-                    )
-                    by_id = {a.id: a for a in res.all()}
-                    assessments = [by_id[aid] for aid in answer_ids if aid in by_id]
+            answer_ids = [uuid.UUID(aid) for aid in report.answer_ids]
+            assessments: list[AnswerAssessment] = []
+            if answer_ids:
+                res = await db.scalars(
+                    select(AnswerAssessment).where(AnswerAssessment.id.in_(answer_ids))
+                )
+                by_id = {a.id: a for a in res.all()}
+                assessments = [by_id[aid] for aid in answer_ids if aid in by_id]
 
-                question_ids = [a.question_id for a in assessments if a.question_id is not None]
-                questions_map = {}
-                if question_ids:
-                    qs = await db.scalars(select(Question).where(Question.id.in_(question_ids)))
-                    questions_map = {str(q.id): q for q in qs.all()}
+            question_ids = [a.question_id for a in assessments if a.question_id is not None]
+            questions_map: dict[str, Question] = {}
+            if question_ids:
+                qs = await db.scalars(select(Question).where(Question.id.in_(question_ids)))
+                questions_map = {str(q.id): q for q in qs.all()}
 
-                summary = build_assessment_summary(assessments, questions_map)
+            if body.summary_override:
+                assessment_texts = split_assessment_summary(body.summary_override)
+            elif assembled_summary:
+                assessment_texts = split_assessment_summary(assembled_summary)
+            else:
+                assessment_texts = build_assessment_texts(assessments, questions_map)
 
-            default = build_suggestions_payload(summary, len(report.answer_ids))
-            payload = _merge_payload(default, body.overrides.get("generate_suggestions"))
-            results["generate_suggestions"] = await run_suggestions_step(
-                payload, question_count=len(report.answer_ids)
+            template_default = build_suggestions_payload(
+                assessment_texts[0] if assessment_texts else "",
+                question_count=1,
+            )
+            template_payload = _merge_payload(
+                template_default,
+                body.overrides.get("generate_suggestions"),
+            )
+            results["generate_suggestions"] = await run_suggestions_batch_step(
+                assessment_texts,
+                template_payload,
             )
 
         else:
@@ -375,10 +393,11 @@ async def get_workflow_defaults():
             "temperature": 0.4,
         },
         "generate_suggestions": {
-            "system_prompt": build_suggestions_system_prompt(3),
+            "system_prompt": build_suggestions_system_prompt(1),
             "note": (
-                "Each question entry must include question_snippet — a brief excerpt "
-                "of the question text that links feedback back to the source question."
+                "Suggestions are generated one question at a time; this shows the payload "
+                "for a single Q&A pair. Each question entry must include question_snippet — "
+                "a brief excerpt of the question text that links feedback back to the source question."
             ),
             "model": settings.SUGGESTIONS_LLM_MODEL,
             "temperature": 0.5,

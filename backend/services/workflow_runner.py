@@ -5,11 +5,13 @@ Runs individual LLM pipeline steps with caller-supplied payload overrides.
 Results are NOT written back to the database — this is a read-only playground.
 """
 
+import json
 import logging
 
 import httpx
 
 from core.config import settings
+from services.prompt_defaults import build_suggestions_payload
 from services.suggestions_parser import build_suggestions_retry_prompt, validate_suggestions
 from services.xml_parser import build_retry_prompt, extract_xml_block, validate_xml
 
@@ -158,4 +160,56 @@ async def run_suggestions_step(payload: dict, question_count: int | None = None)
         "output": last_attempt,
         "attempts": max_retries,
         "error": f"Invalid suggestions JSON after {max_retries} attempts. Last error: {last_error}",
+    }
+
+
+def _payload_for_assessment_text(template_payload: dict, assessment_text: str) -> dict:
+    """Apply per-question user content while preserving template model/messages."""
+    payload = dict(template_payload)
+    messages = list(payload.get("messages") or [])
+    for i in range(len(messages) - 1, -1, -1):
+        if messages[i].get("role") == "user":
+            messages[i] = {**messages[i], "content": assessment_text}
+            break
+    else:
+        messages.append({"role": "user", "content": assessment_text})
+    payload["messages"] = messages
+    return payload
+
+
+async def run_suggestions_batch_step(
+    assessment_texts: list[str],
+    template_payload: dict | None = None,
+) -> dict:
+    """
+    Execute generate_suggestions one question at a time and merge in order.
+    Returns {"output": str | None, "attempts": int, "error": str | None}.
+    """
+    if not assessment_texts:
+        return {"output": None, "attempts": 0, "error": "No assessment texts provided"}
+
+    merged_questions = []
+    total_attempts = 0
+
+    for i, text in enumerate(assessment_texts, 1):
+        default = build_suggestions_payload(text, question_count=1)
+        payload = _payload_for_assessment_text(template_payload or default, text)
+        result = await run_suggestions_step(payload, question_count=1)
+        total_attempts += result.get("attempts", 0)
+        if result["error"]:
+            return {
+                "output": result.get("output"),
+                "attempts": total_attempts,
+                "error": f"Question {i}: {result['error']}",
+            }
+
+        parsed = json.loads(result["output"])
+        feedback = parsed["questions"][0]
+        feedback["question_index"] = i
+        merged_questions.append(feedback)
+
+    return {
+        "output": json.dumps({"questions": merged_questions}, indent=2),
+        "attempts": total_attempts,
+        "error": None,
     }

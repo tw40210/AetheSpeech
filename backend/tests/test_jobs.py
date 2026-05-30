@@ -170,7 +170,7 @@ class TestGenerateReport:
         }
 
         with (
-            patch("worker.jobs.build_assessment_summary", return_value="summary text"),
+            patch("worker.jobs.build_assessment_texts", return_value=["q1 text", "q2 text", "q3 text"]),
             patch("worker.jobs.generate_suggestions", return_value=sample_suggestions),
             patch("worker.jobs.get_sync_db") as mock_ctx,
         ):

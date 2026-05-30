@@ -13,6 +13,7 @@ export default defineConfig({
     proxy: {
       '/auth': apiProxy,
       '/topics': apiProxy,
+      '/topic-generator': apiProxy,
       '/questions': apiProxy,
       '/answers': apiProxy,
       '/reports': apiProxy,

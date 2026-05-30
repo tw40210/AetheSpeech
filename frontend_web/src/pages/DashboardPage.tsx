@@ -1,3 +1,4 @@
+import AutoAwesomeIcon from '@mui/icons-material/AutoAwesome';
 import CheckCircleRoundedIcon from '@mui/icons-material/CheckCircleRounded';
 import DeleteOutlineRoundedIcon from '@mui/icons-material/DeleteOutlineRounded';
 import HistoryIcon from '@mui/icons-material/History';
@@ -215,6 +216,17 @@ export default function DashboardPage() {
               sx={{ mb: 1.5 }}
             >
               Start Interview
+            </Button>
+
+            <Button
+              variant="outlined"
+              size="large"
+              fullWidth
+              startIcon={<AutoAwesomeIcon />}
+              onClick={() => navigate('/topics/create')}
+              disabled={ownTopicCount >= AppConstants.maxUserTopics}
+            >
+              Create Topic with AI
             </Button>
 
             <Button

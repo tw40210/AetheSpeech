@@ -69,6 +69,34 @@ export interface TokenResponse {
   token_type: string;
 }
 
+// ── Topic generator wizard ──────────────────────────────────
+
+export interface FrameworkSuggestion {
+  key: string;
+  name: string;
+  rationale: string;
+  is_preset: boolean;
+}
+
+export interface TopicQuestion {
+  text: string;
+  context?: string | null;
+}
+
+export interface SampleQuestionResponse {
+  text: string;
+  context?: string | null;
+  rationale: string;
+}
+
+/** Matches the TopicIn shape returned by POST /topic-generator/generate */
+export interface GeneratedTopic {
+  name: string;
+  description?: string | null;
+  labels: TopicLabel[];
+  questions: TopicQuestion[];
+}
+
 export interface AnswerSubmitResponse {
   answer_id: string;
   status: string;
